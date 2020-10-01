@@ -27,4 +27,5 @@ setup(name = 'hstego',
       url="https://github.com/daniellerch/hstego",
       description = 'Hard to detect image steganography',
       py_modules = ["hstego"],
+      scripts = ['hstego.py'],
       ext_modules = [m_jpg, m_stc])
