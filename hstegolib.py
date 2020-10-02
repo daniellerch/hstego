@@ -2,6 +2,7 @@
 import os
 import sys
 import glob
+import gzip
 import copy
 import errno
 import random
@@ -132,7 +133,9 @@ def decrypt(cipher_text, password):
 def prepare_message(filename, password):
 
     f = open(filename, 'rb')
-    content_data = f.read()
+    content_data_raw = f.read()
+    content_data = gzip.compress(content_data_raw)
+
 
     # Prepare a header with basic data about the message
     content_ver=struct.pack("B", 1) # version 1
@@ -252,6 +255,7 @@ def extract(stego_img_path, password, output_msg_path, payload=0.10):
     content_ver=struct.unpack_from("B", cleartext, 0)
     content_len=struct.unpack_from("!I", cleartext, 1)[0]
     content = cleartext[5:content_len+5]
+    content = gzip.decompress(content)
 
     f = open(output_msg_path, 'wb')
     f.write(content)
