@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import sys
+import getpass
 import imageio
 import hstegolib
 import scipy.signal
@@ -51,20 +52,30 @@ if __name__ == "__main__":
         msg_file_path = sys.argv[2]
         input_img_path = sys.argv[3]
         output_img_path = sys.argv[4]
-        password = sys.argv[5]
+
+        if len(sys.argv) == 6:
+            password = sys.argv[5]
+        else:
+            password = getpass.getpass(prompt="Password: ")
+        
         I = imageio.imread(input_img_path)
         cost = HILL(I)
-        hstegolib.embed(input_img_path, cost, msg_file_path, password, output_img_path, payload=0.25)
+        hstegolib.embed(input_img_path, cost, msg_file_path, password, output_img_path, payload=0.10)
 
     elif sys.argv[1] == "extract":
-        if len(sys.argv) < 3:
+        if len(sys.argv) < 4:
             help()
 
         stego_img_path = sys.argv[2]
         output_msg_path = sys.argv[3]
-        password = sys.argv[4]
+
+        if len(sys.argv) == 5:
+            password = sys.argv[4]
+        else:
+            password = getpass.getpass(prompt="Password: ")
+
         I = imageio.imread(stego_img_path)
-        hstegolib.extract(stego_img_path, password, output_msg_path, payload=0.25)
+        hstegolib.extract(stego_img_path, password, output_msg_path, payload=0.10)
 
     else:
         help()

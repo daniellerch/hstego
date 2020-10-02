@@ -5,6 +5,8 @@ CURR_FILE=`readlink -f $0`
 DIR=`dirname $CURR_FILE`
 cd $DIR
 
+rm -f output-secret*
+
 hstego.py embed input-secret.txt cover.png stego.png p4ssw0rd
 hstego.py extract stego.png output-secret.txt p4ssw0rd
 if [ "`sha1sum input-secret.txt|cut -d' ' -f1`" != "`sha1sum output-secret.txt|cut -d' ' -f1`" ]
