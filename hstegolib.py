@@ -131,13 +131,13 @@ def decrypt(cipher_text, password):
 # {{{ prepare_message()
 def prepare_message(filename, password):
 
-    f = open(filename, 'r')
+    f = open(filename, 'rb')
     content_data = f.read()
 
     # Prepare a header with basic data about the message
     content_ver=struct.pack("B", 1) # version 1
     content_len=struct.pack("!I", len(content_data))
-    content=content_ver+content_len+content_data.encode('utf8')
+    content=content_ver+content_len+content_data
 
     # encrypt
     enc = encrypt(content, password)
@@ -237,9 +237,7 @@ def extract(stego_img_path, password, output_msg_path, payload=0.10):
     bitval=0
     for b in extracted_message:
         if bitidx==8:
-            #enc += chr(bitval)
             enc.append(bitval)
-            #print("bitval:", bitval)
             bitidx=0
             bitval=0
         bitval |= b<<bitidx
@@ -252,13 +250,15 @@ def extract(stego_img_path, password, output_msg_path, payload=0.10):
  
     # Extract the header and the message
     content_ver=struct.unpack_from("B", cleartext, 0)
-    content_len=struct.unpack_from("!I", cleartext, 1)
-    content=cleartext[5:content_len[0]+5]
-    print(content)
+    content_len=struct.unpack_from("!I", cleartext, 1)[0]
+    content = cleartext[5:content_len+5]
 
-    f = open(output_msg_path, 'w')
-    f.write(content.decode())
+    f = open(output_msg_path, 'wb')
+    f.write(content)
     f.close()
 # }}}
+
+
+
 
 

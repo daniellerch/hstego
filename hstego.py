@@ -54,5 +54,22 @@ if __name__ == "__main__":
         password = sys.argv[5]
         I = imageio.imread(input_img_path)
         cost = HILL(I)
-        hstegolib.embed(input_img_path, cost, msg_file_path, password, output_img_path, payload=0.10)
+        hstegolib.embed(input_img_path, cost, msg_file_path, password, output_img_path, payload=0.25)
+
+    elif sys.argv[1] == "extract":
+        if len(sys.argv) < 3:
+            help()
+
+        stego_img_path = sys.argv[2]
+        output_msg_path = sys.argv[3]
+        password = sys.argv[4]
+        I = imageio.imread(stego_img_path)
+        hstegolib.extract(stego_img_path, password, output_msg_path, payload=0.25)
+
+    else:
+        help()
+
+
+
+
 
