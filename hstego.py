@@ -56,22 +56,22 @@ if __name__ == "__main__":
             sys.exit(-1)
 
         
-        try:
-            if is_ext(input_img_path, SPATIAL_EXT):
+        #try:
+        if is_ext(input_img_path, SPATIAL_EXT):
 
-                hstegolib.HILL_embed(input_img_path, msg_file_path, password, 
-                                     output_img_path, payload=0.10)
+            hstegolib.HILL_embed(input_img_path, msg_file_path, password, 
+                                 output_img_path, payload=0.10)
 
-            elif is_ext(input_img_path, "jpg"):
+        elif is_ext(input_img_path, "jpg"):
 
-                hstegolib.J_UNIWARD_embed(input_img_path, msg_file_path, password, 
-                                          output_img_path, payload=0.10)
+            hstegolib.J_UNIWARD_embed(input_img_path, msg_file_path, password, 
+                                      output_img_path, payload=0.10)
 
-            else:
-                print("File extension not supported")
+        else:
+            print("File extension not supported")
 
-        except Exception as e:
-            print("Error, information can not be embedded:", e)
+        #except Exception as e:
+        #    print("Error, information can not be embedded:", e)
 
 
 
@@ -88,23 +88,23 @@ if __name__ == "__main__":
             password = getpass.getpass(prompt="Password: ")
 
         
-        try:
-            if is_ext(output_img_path, SPATIAL_EXT):
+        #try:
+        if is_ext(stego_img_path, SPATIAL_EXT):
 
-                hstegolib.HILL_extract(stego_img_path, password, 
-                                       output_msg_path, payload=0.10)
+            hstegolib.HILL_extract(stego_img_path, password, 
+                                   output_msg_path, payload=0.10)
 
-            elif is_ext(output_img_path, "jpg"):
+        elif is_ext(stego_img_path, "jpg"):
 
-                hstegolib.J_UNIWARD_extract(stego_img_path, password, 
-                                            output_msg_path, payload=0.10)
+            hstegolib.J_UNIWARD_extract(stego_img_path, password, 
+                                        output_msg_path, payload=0.10)
 
-            else:
-                print("File extension not supported")
+        else:
+            print("File extension not supported")
 
 
-        except Exception as e:
-            print("Error, information can not be extracted:", e)
+        #except Exception as e:
+        #    print("Error, information can not be extracted:", e)
 
     else:
         help()
