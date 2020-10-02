@@ -10,6 +10,7 @@ import struct
 import base64
 import hashlib
 import imageio
+import scipy.signal
 import numpy as np
 
 from ctypes import *
@@ -152,11 +153,30 @@ def prepare_message(filename, password):
     return array
 # }}}
 
-# {{{ embed()
-def embed(input_img_path, cost_matrix,  msg_file_path, password, output_img_path, payload=0.10):
+# {{{ HILL()
+def HILL(I):                                                                
+    HF1 = np.array([                                                             
+        [-1, 2, -1],                                                             
+        [ 2,-4,  2],                                                             
+        [-1, 2, -1]                                                              
+    ])                                                                           
+    H2 = np.ones((3, 3)).astype(np.float)/3**2                                   
+    HW = np.ones((15, 15)).astype(np.float)/15**2                                
+                                                                                 
+    R1 = scipy.signal.convolve2d(I, HF1, mode='same', boundary='symm')
+    W1 = scipy.signal.convolve2d(np.abs(R1), H2, mode='same', boundary='symm')
+    rho=1./(W1+10**(-10))
+    cost = scipy.signal.convolve2d(rho, HW, mode='same', boundary='symm')
+    return cost     
+# }}}
+
+# {{{ HILL_embed()
+def HILL_embed(input_img_path, msg_file_path, password, output_img_path, payload=0.10):
 
     I = imageio.imread(input_img_path)
     width, height = I.shape
+
+    cost_matrix = HILL(I)
 
     # Prepare cover image
     cover = (c_int*(width*height))()
@@ -213,8 +233,8 @@ def embed(input_img_path, cost_matrix,  msg_file_path, password, output_img_path
     imageio.imwrite(output_img_path, I)
 # }}}   
 
-# {{{ extract()
-def extract(stego_img_path, password, output_msg_path, payload=0.10):
+# {{{ HILL_extract()
+def HILL_extract(stego_img_path, password, output_msg_path, payload=0.10):
 
     I = imageio.imread(stego_img_path)
     width, height = I.shape
