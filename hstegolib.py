@@ -135,19 +135,14 @@ def decrypt(cipher_text, password):
 # }}}
 
 # {{{ prepare_message()
-def prepare_message(filename, password):
+def prepare_message(data, password):
 
-    f = open(filename, 'rb')
-    content_data_raw = f.read()
-    content_data = gzip.compress(content_data_raw)
-
-    # Prepare a header with basic data about the message
-    content_ver=struct.pack("B", 1) # version 1
-    content_len=struct.pack("!I", len(content_data))
-    content=content_ver+content_len+content_data
+    data = gzip.compress(data)
+    data_len = struct.pack("!I", len(data))
+    data = data_len + data
 
     # encrypt
-    enc = encrypt(content, password)
+    enc = encrypt(data, password)
 
     array=[]
     for b in enc:
@@ -181,63 +176,85 @@ def HILL(I):
 # {{{ HILL_embed()
 def HILL_embed(input_img_path, msg_file_path, password, output_img_path, payload=0.10):
 
+    with open(msg_file_path, 'rb') as f:
+        data = f.read()
+
     I = imageio.imread(input_img_path)
-    height, width = I.shape
 
-    cost_matrix = HILL(I)
+    if len(I.shape) == 2:
+        height, width = I.shape
+        n_channels = 1
+        cost_matrix = [HILL(I)]
+        I = I[..., np.newaxis]
+        msg_bits = [prepare_message(data, password)]
 
-    # Prepare cover image
-    cover = (c_int*(width*height))()
-    idx=0
-    for j in range(height):
-        for i in range(width):
-            cover[idx] = I[i, j]
-            idx += 1
+    elif len(I.shape) == 3:
+        height, width, _ = I.shape
+        n_channels = 3
+        cost_matrix = [HILL(I[:,:,0]), HILL(I[:,:,1]), HILL(I[:,:,2])]
+        l = len(data)//3
+        msg_bits = [ prepare_message(data[:l], password), 
+                     prepare_message(data[l:2*l], password), 
+                     prepare_message(data[2*l:], password) ]
 
-    # Prepare costs
-    INF = 2**31-1
-    costs = (c_float*(width*height*3))()
-    idx=0
-    for j in range(height):
-        for i in range(width):
-            if cover[idx]==0:
-                costs[3*idx+0] = INF
-                costs[3*idx+1] = 0
-                costs[3*idx+2] = cost_matrix[i, j]
-            elif cover[idx]==255:
-                costs[3*idx+0] = cost_matrix[i, j]
-                costs[3*idx+1] = 0 
-                costs[3*idx+2] = INF
+
+
+    for channel in range(n_channels):
+
+        if len(msg_bits[channel])>width*height*payload:
+            print("Message too long")
+            sys.exit(-1)
+
+        # Prepare cover image
+        cover = (c_int*(width*height))()
+        idx=0
+        for j in range(height):
+            for i in range(width):
+                cover[idx] = I[i, j, channel]
+                idx += 1
+
+        # Prepare costs
+        costs = (c_float*(width*height*3))()
+        idx=0
+        for j in range(height):
+            for i in range(width):
+                if cover[idx]==0:
+                    costs[3*idx+0] = INF
+                    costs[3*idx+1] = 0
+                    costs[3*idx+2] = cost_matrix[channel][i, j]
+                elif cover[idx]==255:
+                    costs[3*idx+0] = cost_matrix[channel][i, j]
+                    costs[3*idx+1] = 0 
+                    costs[3*idx+2] = INF
+                else:
+                    costs[3*idx+0] = cost_matrix[channel][i, j]
+                    costs[3*idx+1] = 0
+                    costs[3*idx+2] = cost_matrix[channel][i, j]
+                idx += 1
+
+
+        m = int(width*height*payload)
+        message = (c_ubyte*m)()
+        for i in range(m):
+            if i<len(msg_bits[channel]):
+                message[i] = msg_bits[channel][i]
             else:
-                costs[3*idx+0] = cost_matrix[i, j]
-                costs[3*idx+1] = 0
-                costs[3*idx+2] = cost_matrix[i, j]
-            idx += 1
+                message[i] = 0
 
-    # Prepare message
-    msg_bits = prepare_message(msg_file_path, password)
-    if len(msg_bits)>width*height*payload:
-        print("Message too long")
-        sys.exit(0)
+        # Hide message
+        stego = (c_int*(width*height))()
+        a = stc.stc_hide(width*height, cover, costs, m, message, stego)
 
-    m = int(width*height*payload)
-    message = (c_ubyte*m)()
-    for i in range(m):
-        if i<len(msg_bits):
-            message[i] = msg_bits[i]
-        else:
-            message[i] = 0
+        # Save output message
+        idx=0
+        for j in range(height):
+            for i in range(width):
+                I[i, j, channel] = stego[idx]
+                idx += 1
 
-    # Hide message
-    stego = (c_int*(width*height))()
-    a = stc.stc_hide(width*height, cover, costs, m, message, stego)
+    if n_channels == 1:
+        I = I.reshape(I.shape[:-1])
 
-    # Save output message
-    idx=0
-    for j in range(height):
-        for i in range(width):
-            I[i, j] = stego[idx]
-            idx += 1
     imageio.imwrite(output_img_path, I)
 # }}}   
 
@@ -245,45 +262,56 @@ def HILL_embed(input_img_path, msg_file_path, password, output_img_path, payload
 def HILL_extract(stego_img_path, password, output_msg_path, payload=0.10):
 
     I = imageio.imread(stego_img_path)
-    height, width = I.shape
 
-    # Prepare stego image
-    stego = (c_int*(width*height))()
-    idx=0
-    for j in range(height):
-        for i in range(width):
-            stego[idx] = I[i, j]
-            idx += 1
+    if len(I.shape) == 2:
+        height, width = I.shape
+        n_channels = 1
+        I = I[..., np.newaxis]
 
-    # Extract the message
-    n = width*height;
-    m = int(n*payload)
-    extracted_message = (c_ubyte*m)()
-    s = stc.stc_unhide(n, stego, m, extracted_message)
+    elif len(I.shape) == 3:
+        height, width, _ = I.shape
+        n_channels = 3
 
-    # Save the message
-    enc = bytearray()
-    idx=0
-    bitidx=0
-    bitval=0
-    for b in extracted_message:
-        if bitidx==8:
-            enc.append(bitval)
-            bitidx=0
-            bitval=0
-        bitval |= b<<bitidx
-        bitidx+=1
+    cleartext_list = []
+    for channel in range(n_channels):
 
-    enc = bytes(enc)   
+        # Prepare stego image
+        stego = (c_int*(width*height))()
+        idx=0
+        for j in range(height):
+            for i in range(width):
+                stego[idx] = I[i, j, channel]
+                idx += 1
 
+        # Extract the message
+        n = width*height;
+        m = int(n*payload)
+        extracted_message = (c_ubyte*m)()
+        s = stc.stc_unhide(n, stego, m, extracted_message)
 
-    cleartext = decrypt(enc, password)
- 
-    # Extract the header and the message
-    content_ver=struct.unpack_from("B", cleartext, 0)
-    content_len=struct.unpack_from("!I", cleartext, 1)[0]
-    content = cleartext[5:content_len+5]
-    content = gzip.decompress(content)
+        # Save the message
+        enc = bytearray()
+        idx=0
+        bitidx=0
+        bitval=0
+        for b in extracted_message:
+            if bitidx==8:
+                enc.append(bitval)
+                bitidx=0
+                bitval=0
+            bitval |= b<<bitidx
+            bitidx+=1
+
+        enc = bytes(enc)   
+
+        cleartext = decrypt(enc, password)
+        cleartext_list.append(cleartext)
+
+    content = bytes()
+    for cleartext in cleartext_list:
+        content_len = struct.unpack_from("!I", cleartext, 0)[0]
+        data = cleartext[4:content_len+4]
+        content += gzip.decompress(data)
 
     f = open(output_msg_path, 'wb')
     f.write(content)
@@ -336,7 +364,6 @@ def J_UNIWARD(coef_arrays, quant_tables, spatial):
     # Create reference cover wavelet coefficients (LH, HL, HH)
     pad_size = 16 # XXX
     spatial_padded = np.pad(spatial, (pad_size, pad_size), 'symmetric')
-    #print(spatial_padded.shape)
 
 
     RC = []
@@ -379,64 +406,83 @@ def J_UNIWARD(coef_arrays, quant_tables, spatial):
 # {{{ J_UNIWARD_embed()
 def J_UNIWARD_embed(input_img_path, msg_file_path, password, output_img_path, payload=0.10):
 
-    jpg = jpeg_load(input_img_path)
+    with open(msg_file_path, 'rb') as f:
+        data = f.read()
+
     I = imageio.imread(input_img_path)
-    width, height = I.shape
-    cover_coeffs = jpg["coef_arrays"][0]
+    jpg = jpeg_load(input_img_path)
 
-    cost_matrix = J_UNIWARD(cover_coeffs, jpg["quant_tables"][0], I)
+    if len(I.shape) == 2:
+        height, width = I.shape
+        n_channels = 1
+        cost_matrix = [J_UNIWARD(jpg["coef_arrays"][0], jpg["quant_tables"][0], I)]
+        I = I[..., np.newaxis]
+        msg_bits = [prepare_message(data, password)]
 
-    # Prepare cover image
-    cover = (c_int*(width*height))()
-    idx=0
-    for j in range(height):
-        for i in range(width):
-            cover[idx] = int(cover_coeffs[i, j])
-            idx += 1
+    elif len(I.shape) == 3:
+        height, width, _ = I.shape
+        n_channels = 3
+        cost_matrix = [J_UNIWARD(jpg["coef_arrays"][0], jpg["quant_tables"][0], I[:,:,0]), 
+                       J_UNIWARD(jpg["coef_arrays"][1], jpg["quant_tables"][1], I[:,:,1]), 
+                       J_UNIWARD(jpg["coef_arrays"][2], jpg["quant_tables"][1], I[:,:,2])]
+        l = len(data)//3
+        msg_bits = [ prepare_message(data[:l], password), 
+                     prepare_message(data[l:2*l], password), 
+                     prepare_message(data[2*l:], password) ]
 
-    # Prepare costs
-    costs = (c_float*(width*height*3))()
-    idx=0
-    for j in range(height):
-        for i in range(width):
-            if cover[idx]<=1016:
-                costs[3*idx+0] = INF
-                costs[3*idx+1] = 0
-                costs[3*idx+2] = cost_matrix[i, j]
-            elif cover[idx]>=1016:
-                costs[3*idx+0] = cost_matrix[i, j]
-                costs[3*idx+1] = 0 
-                costs[3*idx+2] = INF
+
+
+    for channel in range(n_channels):
+
+        if len(msg_bits[channel])>width*height*payload:
+            print("Message too long")
+            sys.exit(-1)
+
+        # Prepare cover image
+        cover = (c_int*(width*height))()
+        idx=0
+        for j in range(height):
+            for i in range(width):
+                cover[idx] = int(jpg["coef_arrays"][channel][i, j])
+                idx += 1
+
+        # Prepare costs
+        costs = (c_float*(width*height*3))()
+        idx=0
+        for j in range(height):
+            for i in range(width):
+                if cover[idx]<=1016:
+                    costs[3*idx+0] = INF
+                    costs[3*idx+1] = 0
+                    costs[3*idx+2] = cost_matrix[channel][i, j]
+                elif cover[idx]>=1016:
+                    costs[3*idx+0] = cost_matrix[channel][i, j]
+                    costs[3*idx+1] = 0 
+                    costs[3*idx+2] = INF
+                else:
+                    costs[3*idx+0] = cost_matrix[channel][i, j]
+                    costs[3*idx+1] = 0
+                    costs[3*idx+2] = cost_matrix[channel][i, j]
+                idx += 1
+
+        m = int(width*height*payload)
+        message = (c_ubyte*m)()
+        for i in range(m):
+            if i<len(msg_bits[channel]):
+                message[i] = msg_bits[channel][i]
             else:
-                costs[3*idx+0] = cost_matrix[i, j]
-                costs[3*idx+1] = 0
-                costs[3*idx+2] = cost_matrix[i, j]
-            idx += 1
+                message[i] = 0
 
-    # Prepare message
-    msg_bits = prepare_message(msg_file_path, password)
-    if len(msg_bits)>width*height*payload:
-        print("Message too long")
-        sys.exit(0)
+        # Hide message
+        stego_coeffs = (c_int*(width*height))()
+        a = stc.stc_hide(width*height, cover, costs, m, message, stego_coeffs)
 
-    m = int(width*height*payload)
-    message = (c_ubyte*m)()
-    for i in range(m):
-        if i<len(msg_bits):
-            message[i] = msg_bits[i]
-        else:
-            message[i] = 0
-
-    # Hide message
-    stego_coeffs = (c_int*(width*height))()
-    a = stc.stc_hide(width*height, cover, costs, m, message, stego_coeffs)
-
-    # Save output message
-    idx=0
-    for j in range(height):
-        for i in range(width):
-            jpg["coef_arrays"][0][i, j] = stego_coeffs[idx]
-            idx += 1
+        # Save output message
+        idx=0
+        for j in range(height):
+            for i in range(width):
+                jpg["coef_arrays"][channel][i, j] = stego_coeffs[idx]
+                idx += 1
 
     jpeg_save(jpg, output_img_path)
 
@@ -447,48 +493,63 @@ def J_UNIWARD_extract(stego_img_path, password, output_msg_path, payload=0.10):
 
     jpg = jpeg_load(stego_img_path)
     I = imageio.imread(stego_img_path)
-    width, height = I.shape
 
-    # Prepare stego image
-    stego = (c_int*(width*height))()
-    idx=0
-    for j in range(height):
-        for i in range(width):
-            stego[idx] = int(jpg["coef_arrays"][0][i, j])
-            idx += 1
+    if len(I.shape) == 2:
+        height, width = I.shape
+        n_channels = 1
+        I = I[..., np.newaxis]
 
-    # Extract the message
-    n = width*height;
-    m = int(n*payload)
-    extracted_message = (c_ubyte*m)()
-    s = stc.stc_unhide(n, stego, m, extracted_message)
+    elif len(I.shape) == 3:
+        height, width, _ = I.shape
+        n_channels = 3
 
-    # Save the message
-    enc = bytearray()
-    idx=0
-    bitidx=0
-    bitval=0
-    for b in extracted_message:
-        if bitidx==8:
-            enc.append(bitval)
-            bitidx=0
-            bitval=0
-        bitval |= b<<bitidx
-        bitidx+=1
+    cleartext_list = []
+    for channel in range(n_channels):
 
-    enc = bytes(enc)   
+        # Prepare stego image
+        stego = (c_int*(width*height))()
+        idx=0
+        for j in range(height):
+            for i in range(width):
+                stego[idx] = int(jpg["coef_arrays"][channel][i, j])
+                idx += 1
 
-    cleartext = decrypt(enc, password)
+        # Extract the message
+        n = width*height;
+        m = int(n*payload)
+        extracted_message = (c_ubyte*m)()
+        s = stc.stc_unhide(n, stego, m, extracted_message)
+
+        # Save the message
+        enc = bytearray()
+        idx=0
+        bitidx=0
+        bitval=0
+        for b in extracted_message:
+            if bitidx==8:
+                enc.append(bitval)
+                bitidx=0
+                bitval=0
+            bitval |= b<<bitidx
+            bitidx+=1
+
+        enc = bytes(enc)   
+
+        cleartext = decrypt(enc, password)
+        cleartext_list.append(cleartext)
  
-    # Extract the header and the message
-    content_ver=struct.unpack_from("B", cleartext, 0)
-    content_len=struct.unpack_from("!I", cleartext, 1)[0]
-    content = cleartext[5:content_len+5]
-    content = gzip.decompress(content)
+
+    content = bytes()
+    for cleartext in cleartext_list:
+        content_len = struct.unpack_from("!I", cleartext, 0)[0]
+        data = cleartext[4:content_len+4]
+        content += gzip.decompress(data)
 
     f = open(output_msg_path, 'wb')
     f.write(content)
     f.close()
 # }}}
+
+
 
 
