@@ -55,7 +55,7 @@ if __name__ == "__main__":
             print("Error, input and output images should have the same extension")
             sys.exit(-1)
 
-        """
+        
         try:
             if is_ext(input_img_path, SPATIAL_EXT):
 
@@ -72,11 +72,6 @@ if __name__ == "__main__":
 
         except Exception as e:
             print("Error, information can not be embedded:", e)
-        """
-
-
-        hstegolib.J_UNIWARD_embed(input_img_path, msg_file_path, password, 
-                                  output_img_path, payload=0.10)
 
 
 
@@ -92,7 +87,7 @@ if __name__ == "__main__":
         else:
             password = getpass.getpass(prompt="Password: ")
 
-        """
+        
         try:
             if is_ext(output_img_path, SPATIAL_EXT):
 
@@ -110,11 +105,6 @@ if __name__ == "__main__":
 
         except Exception as e:
             print("Error, information can not be extracted:", e)
-        """
-
-
-        hstegolib.J_UNIWARD_extract(stego_img_path, password, 
-                                    output_msg_path, payload=0.10)
 
     else:
         help()
