@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 
+import os
 import sys
 import getpass
-import imageio
 import hstegolib
 
-# {{{ help()
+SPATIAL_EXT = ["png", "pgm", "tif"]
+
 def help():
     print("\nUsage:")
     print("  ", sys.argv[0], "embed <input msg file> <input cover image> <output stego image> [password]")
@@ -16,8 +17,19 @@ def help():
     print("  ", sys.argv[0], "extract stego.png output-secret.txt p4ssw0rd")
     print("")
     sys.exit(0)
-# }}}
 
+def is_ext(path, extensions):
+    fn, ext = os.path.splitext(path)
+    if ext[1:].lower() in extensions:
+        return True
+    return False
+
+def same_extension(path1, path2):
+    fn1, ext1 = os.path.splitext(path1)
+    fn2, ext2 = os.path.splitext(path2)
+    if ext1!=ext2:
+        return False
+    return True
 
 
 if __name__ == "__main__":
@@ -37,8 +49,36 @@ if __name__ == "__main__":
             password = sys.argv[5]
         else:
             password = getpass.getpass(prompt="Password: ")
-        
-        hstegolib.HILL_embed(input_img_path, msg_file_path, password, output_img_path, payload=0.10)
+ 
+
+        if not same_extension(input_img_path, output_img_path):
+            print("Error, input and output images should have the same extension")
+            sys.exit(-1)
+
+        """
+        try:
+            if is_ext(input_img_path, SPATIAL_EXT):
+
+                hstegolib.HILL_embed(input_img_path, msg_file_path, password, 
+                                     output_img_path, payload=0.10)
+
+            elif is_ext(input_img_path, "jpg"):
+
+                hstegolib.J_UNIWARD_embed(input_img_path, msg_file_path, password, 
+                                          output_img_path, payload=0.10)
+
+            else:
+                print("File extension not supported")
+
+        except Exception as e:
+            print("Error, information can not be embedded:", e)
+        """
+
+
+        hstegolib.J_UNIWARD_embed(input_img_path, msg_file_path, password, 
+                                  output_img_path, payload=0.10)
+
+
 
     elif sys.argv[1] == "extract":
         if len(sys.argv) < 4:
@@ -52,8 +92,29 @@ if __name__ == "__main__":
         else:
             password = getpass.getpass(prompt="Password: ")
 
-        I = imageio.imread(stego_img_path)
-        hstegolib.HILL_extract(stego_img_path, password, output_msg_path, payload=0.10)
+        """
+        try:
+            if is_ext(output_img_path, SPATIAL_EXT):
+
+                hstegolib.HILL_extract(stego_img_path, password, 
+                                       output_msg_path, payload=0.10)
+
+            elif is_ext(output_img_path, "jpg"):
+
+                hstegolib.J_UNIWARD_extract(stego_img_path, password, 
+                                            output_msg_path, payload=0.10)
+
+            else:
+                print("File extension not supported")
+
+
+        except Exception as e:
+            print("Error, information can not be extracted:", e)
+        """
+
+
+        hstegolib.J_UNIWARD_extract(stego_img_path, password, 
+                                    output_msg_path, payload=0.10)
 
     else:
         help()

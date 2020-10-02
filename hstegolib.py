@@ -11,12 +11,16 @@ import base64
 import hashlib
 import imageio
 import scipy.signal
+import scipy.fftpack
 import numpy as np
 
 from ctypes import *
 from Cryptodome.Cipher import AES
 from Cryptodome.Random import get_random_bytes
 from Crypto.Util.Padding import pad, unpad
+
+
+INF = 2**31-1
 
 jpg_candidates = glob.glob(os.path.join(os.path.dirname(__file__), 'jpeg_toolbox_extension.*.so'))
 if not jpg_candidates:
@@ -31,8 +35,8 @@ if not stc_candidates:
 stc = CDLL(stc_candidates[0])
 
 
-# {{{ load()
-def load(path, use_blocks=False):
+# {{{ jpeg_load()
+def jpeg_load(path, use_blocks=False):
 
     if not os.path.isfile(path):
         raise FileNotFoundError(errno.ENOENT, 
@@ -64,9 +68,9 @@ def load(path, use_blocks=False):
     return r
 # }}}
 
-# {{{ save()
-def save(data, path, use_blocks=False):
-    jpeg = CDLL(SO_PATH)
+# {{{ jpeg_save()
+def jpeg_save(data, path, use_blocks=False):
+
     jpeg.write_file.argtypes = py_object,c_char_p
 
     r = copy.deepcopy(data)
@@ -137,7 +141,6 @@ def prepare_message(filename, password):
     content_data_raw = f.read()
     content_data = gzip.compress(content_data_raw)
 
-
     # Prepare a header with basic data about the message
     content_ver=struct.pack("B", 1) # version 1
     content_len=struct.pack("!I", len(content_data))
@@ -153,6 +156,7 @@ def prepare_message(filename, password):
     return array
 # }}}
 
+
 # {{{ HILL()
 def HILL(I):                                                                
     HF1 = np.array([                                                             
@@ -167,6 +171,10 @@ def HILL(I):
     W1 = scipy.signal.convolve2d(np.abs(R1), H2, mode='same', boundary='symm')
     rho=1./(W1+10**(-10))
     cost = scipy.signal.convolve2d(rho, HW, mode='same', boundary='symm')
+
+    cost[np.isnan(cost)] = INF
+    cost[cost>INF] = INF
+
     return cost     
 # }}}
 
@@ -174,7 +182,7 @@ def HILL(I):
 def HILL_embed(input_img_path, msg_file_path, password, output_img_path, payload=0.10):
 
     I = imageio.imread(input_img_path)
-    width, height = I.shape
+    height, width = I.shape
 
     cost_matrix = HILL(I)
 
@@ -237,7 +245,7 @@ def HILL_embed(input_img_path, msg_file_path, password, output_img_path, payload
 def HILL_extract(stego_img_path, password, output_msg_path, payload=0.10):
 
     I = imageio.imread(stego_img_path)
-    width, height = I.shape
+    height, width = I.shape
 
     # Prepare stego image
     stego = (c_int*(width*height))()
@@ -284,5 +292,203 @@ def HILL_extract(stego_img_path, password, output_msg_path, payload=0.10):
 
 
 
+# {{{ J_UNIWARD()
+def dct2(a):
+    return scipy.fftpack.dct(scipy.fftpack.dct( a, axis=0, norm='ortho' ), axis=1, norm='ortho')
+    
+def idct2(a):
+    return scipy.fftpack.idct(scipy.fftpack.idct( a, axis=0 , norm='ortho'), axis=1 , norm='ortho')
+
+def J_UNIWARD(coef_arrays, quant_tables, spatial):
+
+    hpdf = np.array([
+        -0.0544158422,  0.3128715909, -0.6756307363,  0.5853546837,  
+         0.0158291053, -0.2840155430, -0.0004724846,  0.1287474266,  
+         0.0173693010, -0.0440882539, -0.0139810279,  0.0087460940,  
+         0.0048703530, -0.0003917404, -0.0006754494, -0.0001174768
+    ])        
+
+    sign = np.array([-1 if i%2 else 1 for i in range(len(hpdf))])
+    lpdf = hpdf[::-1] * sign
+
+    F = []
+    F.append(np.outer(lpdf.T, hpdf))
+    F.append(np.outer(hpdf.T, lpdf))
+    F.append(np.outer(hpdf.T, hpdf))
+
+
+    # Pre-compute impact in spatial domain when a jpeg coefficient is changed by 1
+    spatial_impact = {}
+    for i in range(8):
+        for j in range(8):
+            test_coeffs = np.zeros((8, 8))
+            test_coeffs[i, j] = 1
+            spatial_impact[i, j] = idct2(test_coeffs) * quant_tables[i, j]
+
+    # Pre compute impact on wavelet coefficients when a jpeg coefficient is changed by 1
+    wavelet_impact = {}
+    for f_index in range(len(F)):
+        for i in range(8):
+            for j in range(8):
+                wavelet_impact[f_index, i, j] = scipy.signal.correlate2d(spatial_impact[i, j], F[f_index], mode='full', boundary='fill', fillvalue=0.) # XXX
+
+
+    # Create reference cover wavelet coefficients (LH, HL, HH)
+    pad_size = 16 # XXX
+    spatial_padded = np.pad(spatial, (pad_size, pad_size), 'symmetric')
+    #print(spatial_padded.shape)
+
+
+    RC = []
+    for i in range(len(F)):
+        f = scipy.signal.correlate2d(spatial_padded, F[i], mode='same', boundary='fill')
+        RC.append(f)
+
+
+    coeffs = coef_arrays
+    k, l = coeffs.shape
+    nzAC = np.count_nonzero(coef_arrays) - np.count_nonzero(coef_arrays[::8, ::8])
+
+    rho = np.zeros((k, l))
+    tempXi = [0.]*3
+    sgm = 2**(-6)
+
+    # Computation of costs
+    for row in range(k):
+        for col in range(l):
+            mod_row = row % 8
+            mod_col = col % 8
+            sub_rows = list(range(row-mod_row-6+pad_size-1, row-mod_row+16+pad_size))
+            sub_cols = list(range(col-mod_col-6+pad_size-1, col-mod_col+16+pad_size))
+
+            for f_index in range(3):
+                RC_sub = RC[f_index][sub_rows][:,sub_cols]
+                wav_cover_stego_diff = wavelet_impact[f_index, mod_row, mod_col]
+                tempXi[f_index] = abs(wav_cover_stego_diff) / (abs(RC_sub)+sgm)
+
+            rho_temp = tempXi[0] + tempXi[1] + tempXi[2]
+            rho[row, col] = np.sum(rho_temp)
+
+
+    rho[np.isnan(rho)] = INF
+    rho[rho>INF] = INF
+
+    return rho
+# }}}
+
+# {{{ J_UNIWARD_embed()
+def J_UNIWARD_embed(input_img_path, msg_file_path, password, output_img_path, payload=0.10):
+
+    jpg = jpeg_load(input_img_path)
+    I = imageio.imread(input_img_path)
+    width, height = I.shape
+    cover_coeffs = jpg["coef_arrays"][0]
+
+    cost_matrix = J_UNIWARD(cover_coeffs, jpg["quant_tables"][0], I)
+
+    # Prepare cover image
+    cover = (c_int*(width*height))()
+    idx=0
+    for j in range(height):
+        for i in range(width):
+            cover[idx] = int(cover_coeffs[i, j])
+            idx += 1
+
+    # Prepare costs
+    costs = (c_float*(width*height*3))()
+    idx=0
+    for j in range(height):
+        for i in range(width):
+            if cover[idx]<=1016:
+                costs[3*idx+0] = INF
+                costs[3*idx+1] = 0
+                costs[3*idx+2] = cost_matrix[i, j]
+            elif cover[idx]>=1016:
+                costs[3*idx+0] = cost_matrix[i, j]
+                costs[3*idx+1] = 0 
+                costs[3*idx+2] = INF
+            else:
+                costs[3*idx+0] = cost_matrix[i, j]
+                costs[3*idx+1] = 0
+                costs[3*idx+2] = cost_matrix[i, j]
+            idx += 1
+
+    # Prepare message
+    msg_bits = prepare_message(msg_file_path, password)
+    if len(msg_bits)>width*height*payload:
+        print("Message too long")
+        sys.exit(0)
+
+    m = int(width*height*payload)
+    message = (c_ubyte*m)()
+    for i in range(m):
+        if i<len(msg_bits):
+            message[i] = msg_bits[i]
+        else:
+            message[i] = 0
+
+    # Hide message
+    stego_coeffs = (c_int*(width*height))()
+    a = stc.stc_hide(width*height, cover, costs, m, message, stego_coeffs)
+
+    # Save output message
+    idx=0
+    for j in range(height):
+        for i in range(width):
+            jpg["coef_arrays"][0][i, j] = stego_coeffs[idx]
+            idx += 1
+
+    jpeg_save(jpg, output_img_path)
+
+# }}}   
+
+# {{{ J_UNIWARD_extract()
+def J_UNIWARD_extract(stego_img_path, password, output_msg_path, payload=0.10):
+
+    jpg = jpeg_load(stego_img_path)
+    I = imageio.imread(stego_img_path)
+    width, height = I.shape
+
+    # Prepare stego image
+    stego = (c_int*(width*height))()
+    idx=0
+    for j in range(height):
+        for i in range(width):
+            stego[idx] = int(jpg["coef_arrays"][0][i, j])
+            idx += 1
+
+    # Extract the message
+    n = width*height;
+    m = int(n*payload)
+    extracted_message = (c_ubyte*m)()
+    s = stc.stc_unhide(n, stego, m, extracted_message)
+
+    # Save the message
+    enc = bytearray()
+    idx=0
+    bitidx=0
+    bitval=0
+    for b in extracted_message:
+        if bitidx==8:
+            enc.append(bitval)
+            bitidx=0
+            bitval=0
+        bitval |= b<<bitidx
+        bitidx+=1
+
+    enc = bytes(enc)   
+
+    cleartext = decrypt(enc, password)
+ 
+    # Extract the header and the message
+    content_ver=struct.unpack_from("B", cleartext, 0)
+    content_len=struct.unpack_from("!I", cleartext, 1)[0]
+    content = cleartext[5:content_len+5]
+    content = gzip.decompress(content)
+
+    f = open(output_msg_path, 'wb')
+    f.write(content)
+    f.close()
+# }}}
 
 
