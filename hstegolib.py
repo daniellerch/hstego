@@ -198,11 +198,10 @@ def HILL_embed(input_img_path, msg_file_path, password, output_img_path, payload
                      prepare_message(data[2*l:], password) ]
 
 
-
     for channel in range(n_channels):
 
-        if len(msg_bits[channel])>width*height*payload:
-            print("Message too long")
+        if len(msg_bits[channel])>width*height*payload*8:
+            print("Message too long:", len(msg_bits[channel]), "bits >", width*height*payload*8, "max bits")
             sys.exit(-1)
 
         # Prepare cover image
@@ -435,7 +434,7 @@ def J_UNIWARD_embed(input_img_path, msg_file_path, password, output_img_path, pa
     for channel in range(n_channels):
 
         if len(msg_bits[channel])>width*height*payload:
-            print("Message too long")
+            print("Message too long:", len(msg_bits[channel]), "bits >", width*height*payload*8, "max bits")
             sys.exit(-1)
 
         # Prepare cover image

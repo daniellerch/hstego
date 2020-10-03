@@ -5,6 +5,7 @@ import sys
 import getpass
 import hstegolib
 
+PAYLOAD = 0.40
 SPATIAL_EXT = ["png", "pgm", "tif"]
 
 def help():
@@ -51,21 +52,21 @@ if __name__ == "__main__":
             password = getpass.getpass(prompt="Password: ")
  
 
-        if not same_extension(input_img_path, output_img_path):
-            print("Error, input and output images should have the same extension")
-            sys.exit(-1)
+        #if not same_extension(input_img_path, output_img_path):
+        #    print("Error, input and output images should have the same extension")
+        #    sys.exit(-1)
 
         
         #try:
-        if is_ext(input_img_path, SPATIAL_EXT):
+        if is_ext(output_img_path, SPATIAL_EXT):
 
             hstegolib.HILL_embed(input_img_path, msg_file_path, password, 
-                                 output_img_path, payload=0.10)
+                                 output_img_path, payload=PAYLOAD)
 
         elif is_ext(input_img_path, "jpg"):
 
             hstegolib.J_UNIWARD_embed(input_img_path, msg_file_path, password, 
-                                      output_img_path, payload=0.10)
+                                      output_img_path, payload=PAYLOAD)
 
         else:
             print("File extension not supported")
@@ -92,12 +93,12 @@ if __name__ == "__main__":
         if is_ext(stego_img_path, SPATIAL_EXT):
 
             hstegolib.HILL_extract(stego_img_path, password, 
-                                   output_msg_path, payload=0.10)
+                                   output_msg_path, payload=PAYLOAD)
 
         elif is_ext(stego_img_path, "jpg"):
 
             hstegolib.J_UNIWARD_extract(stego_img_path, password, 
-                                        output_msg_path, payload=0.10)
+                                        output_msg_path, payload=PAYLOAD)
 
         else:
             print("File extension not supported")
