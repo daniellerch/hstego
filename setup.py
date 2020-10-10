@@ -10,7 +10,8 @@ m_stc = Extension('stc_extension',
                   sources = ['src/common.cpp',
                              'src/stc_embed_c.cpp',
                              'src/stc_extract_c.cpp',
-                             'src/stc_interface.cpp'],
+                             'src/stc_interface.cpp',
+                             'src/stc_ml_c.cpp'],
                   extra_compile_args = ['-std=c++98'],
                   libraries = ['jpeg'])
 
