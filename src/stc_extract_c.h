@@ -14,7 +14,6 @@ Return values:
 	0 on succes, -1 on error
 */
 
-extern "C" {
 int stc_extract(const u8 *stego, int stegolength, u8 *message, int messagelength, int constr_height = 10);
-}
+
 #endif

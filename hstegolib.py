@@ -21,6 +21,7 @@ from Crypto.Util.Padding import pad, unpad
 
 
 INF = 2**31-1
+DEBUG = True
 
 jpg_candidates = glob.glob(os.path.join(os.path.dirname(__file__), 'jpeg_toolbox_extension.*.so'))
 if not jpg_candidates:
@@ -137,17 +138,30 @@ def decrypt(cipher_text, password):
 # {{{ prepare_message()
 def prepare_message(data, password):
 
+    if DEBUG: print("\n-- PREPARE DATA --")
+
+    if DEBUG: print("DATA:", [b for b in data[:10]])
+    if DEBUG: print("LEN:", len(data))
+
     data = gzip.compress(data)
+    if DEBUG: print("GZIP:", [b for b in data[:10]])
+    if DEBUG: print("LEN GZIP:", len(data))
+
     data_len = struct.pack("!I", len(data))
     data = data_len + data
+    if DEBUG: print("GZIP+LEN:", [b for b in data[:10]])
 
     # encrypt
     enc = encrypt(data, password)
+    if DEBUG: print("GZIP+LEN+ENC:", [b for b in enc[:10]])
 
     array=[]
     for b in enc:
         for i in range(8):
             array.append((b >> i) & 1)
+
+    if DEBUG: print("BITS:", [b for b in array[:20]])
+
     return array
 # }}}
 
@@ -284,7 +298,7 @@ def HILL_extract(stego_img_path, password, output_msg_path, payload=0.10):
 
         # Extract the message
         n = width*height;
-        m = int(n*payload)
+        m = int(n*payload) 
         extracted_message = (c_ubyte*m)()
         s = stc.stc_unhide(n, stego, m, extracted_message)
 
@@ -433,7 +447,7 @@ def J_UNIWARD_embed(input_img_path, msg_file_path, password, output_img_path, pa
 
     for channel in range(n_channels):
 
-        if len(msg_bits[channel])>width*height*payload:
+        if len(msg_bits[channel])>width*height*payload*8:
             print("Message too long:", len(msg_bits[channel]), "bits >", width*height*payload*8, "max bits")
             sys.exit(-1)
 
@@ -465,6 +479,7 @@ def J_UNIWARD_embed(input_img_path, msg_file_path, password, output_img_path, pa
                 idx += 1
 
         m = int(width*height*payload)
+        if DEBUG: print("TO HIDE:", m)
         message = (c_ubyte*m)()
         for i in range(m):
             if i<len(msg_bits[channel]):
@@ -503,6 +518,8 @@ def J_UNIWARD_extract(stego_img_path, password, output_msg_path, payload=0.10):
         n_channels = 3
 
     cleartext_list = []
+    
+    if DEBUG: print("\n-- EXTRACT DATA --")
     for channel in range(n_channels):
 
         # Prepare stego image
@@ -516,8 +533,11 @@ def J_UNIWARD_extract(stego_img_path, password, output_msg_path, payload=0.10):
         # Extract the message
         n = width*height;
         m = int(n*payload)
+        if DEBUG: print("TO EXTRACT:", m)
         extracted_message = (c_ubyte*m)()
         s = stc.stc_unhide(n, stego, m, extracted_message)
+
+        if DEBUG: print("BITS:", [b for b in extracted_message[:20]])
 
         # Save the message
         enc = bytearray()
@@ -533,6 +553,7 @@ def J_UNIWARD_extract(stego_img_path, password, output_msg_path, payload=0.10):
             bitidx+=1
 
         enc = bytes(enc)   
+        if DEBUG: print("GZIP+LEN+ENC:", [b for b in enc[:10]])
 
         cleartext = decrypt(enc, password)
         cleartext_list.append(cleartext)
@@ -540,13 +561,80 @@ def J_UNIWARD_extract(stego_img_path, password, output_msg_path, payload=0.10):
 
     content = bytes()
     for cleartext in cleartext_list:
+        if DEBUG: print("GZIP+LEN:", [b for b in cleartext[:10]])
         content_len = struct.unpack_from("!I", cleartext, 0)[0]
         data = cleartext[4:content_len+4]
+        if DEBUG: print("GZIP:", [b for b in data[:10]])
         content += gzip.decompress(data)
+        if DEBUG: print("DATA:", [b for b in content[:10]])
 
     f = open(output_msg_path, 'wb')
     f.write(content)
     f.close()
+# }}}
+
+
+# {{{ stc_test()
+def stc_test(n_iter, width=512, height=512):
+    for k in range(n_iter):
+
+        # Prepare cover image
+        cover = (c_int*(width*height))()
+        idx=0
+        for j in range(height):
+            for i in range(width):
+                cover[idx] = random.randint(0,255)
+                idx += 1
+
+        # Prepare costs
+        costs = (c_float*(width*height*3))()
+        idx=0
+        for j in range(height):
+            for i in range(width):
+                if cover[idx]==0:
+                    costs[3*idx+0] = INF
+                    costs[3*idx+1] = 0
+                    costs[3*idx+2] = random.randint(0, 100)
+                elif cover[idx]==255:
+                    costs[3*idx+0] = random.randint(0, 100)
+                    costs[3*idx+1] = 0 
+                    costs[3*idx+2] = INF
+                else:
+                    costs[3*idx+0] = random.randint(0, 100)
+                    costs[3*idx+1] = 0
+                    costs[3*idx+2] = random.randint(0, 100)
+                idx += 1
+
+        #payload = random.choice([0.1, 0.2, 0.4, 0.5, 0.6])
+        payload = random.choice([0.1])
+        m = int(width*height*payload)
+        message = (c_ubyte*m)()
+        for i in range(m):
+            message[i] = random.randint(0, 1)
+
+        print("payload:", payload, "total len:", width*height, "payload len:", m)
+
+        stego = (c_int*(width*height))()
+        a = stc.stc_hide(width*height, cover, costs, m, message, stego)
+
+        # Extract the message
+        stego_len = width*height;
+        extracted_message_len = int(stego_len*payload) 
+        extracted_message = (c_ubyte*extracted_message_len)()
+        s = stc.stc_unhide(stego_len, stego, extracted_message_len, extracted_message)
+
+        print(list(message)[-10:])
+        print(list(extracted_message)[-10:])
+
+        err = False
+        for j in range(len(message)):
+            if message[j] != extracted_message[j]:
+                print("Error, position:", j, "values:", message[j], "!=", extracted_message[j])
+                err = True
+                break
+        if not err:
+            print("OK!")
+
 # }}}
 
 
