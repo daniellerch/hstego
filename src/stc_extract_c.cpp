@@ -29,7 +29,9 @@ int stc_extract(const u8 *vector, int vectorlength, u8 *message, int syndromelen
 		invalpha = (double)vectorlength / syndromelength;
 		if(invalpha < 1) {
 			fprintf(stderr, "The message cannot be longer than the cover object.\n");
-			return -1;
+			//return -1;
+            vectorlength = syndromelength;
+            invalpha = 1;
 		}
 		shorter = (int)floor(invalpha);
 		longer = (int)ceil(invalpha);
