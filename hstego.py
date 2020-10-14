@@ -108,7 +108,7 @@ if __name__ == "__main__":
         #    print("Error, information can not be extracted:", e)
 
     elif sys.argv[1] == "stc-test":
-        hstegolib.stc_test(10)
+        hstegolib.stc_test(100)
     else:
         help()
 

@@ -31,8 +31,6 @@
 
 #include <xmmintrin.h>
 
-extern "C" {
-
 /* yes I know, the top of this file is quite ugly */
 
 #define USE_SSE2 // use SSE2 version
@@ -761,4 +759,4 @@ void sincos_ps(v4sf x, v4sf *s, v4sf *c) {
   *s = _mm_xor_ps(xmm1, sign_bit_sin);
   *c = _mm_xor_ps(xmm2, sign_bit_cos);
 }
-}
+

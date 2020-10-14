@@ -21,7 +21,7 @@ from Crypto.Util.Padding import pad, unpad
 
 
 INF = 2**31-1
-DEBUG = True
+DEBUG = False
 
 jpg_candidates = glob.glob(os.path.join(os.path.dirname(__file__), 'jpeg_toolbox_extension.*.so'))
 if not jpg_candidates:
@@ -576,6 +576,7 @@ def J_UNIWARD_extract(stego_img_path, password, output_msg_path, payload=0.10):
 
 # {{{ stc_test()
 def stc_test(n_iter, width=512, height=512):
+    random.seed(0)
     for k in range(n_iter):
 
         # Prepare cover image
@@ -605,8 +606,8 @@ def stc_test(n_iter, width=512, height=512):
                     costs[3*idx+2] = random.randint(0, 100)
                 idx += 1
 
-        #payload = random.choice([0.1, 0.2, 0.4, 0.5, 0.6])
-        payload = random.choice([0.1])
+        payload = random.choice([0.1, 0.15, 0.2, 0.25, 0.30, 0.35, 0.4, 0.45, 0.5])
+        #payload = random.choice([0.10])
         m = int(width*height*payload)
         message = (c_ubyte*m)()
         for i in range(m):
@@ -623,8 +624,8 @@ def stc_test(n_iter, width=512, height=512):
         extracted_message = (c_ubyte*extracted_message_len)()
         s = stc.stc_unhide(stego_len, stego, extracted_message_len, extracted_message)
 
-        print(list(message)[-10:])
-        print(list(extracted_message)[-10:])
+        #print(list(message)[-10:])
+        #print(list(extracted_message)[-10:])
 
         err = False
         for j in range(len(message)):
@@ -632,8 +633,8 @@ def stc_test(n_iter, width=512, height=512):
                 print("Error, position:", j, "values:", message[j], "!=", extracted_message[j])
                 err = True
                 break
-        if not err:
-            print("OK!")
+        #if not err:
+        #    print("OK!")
 
 # }}}
 

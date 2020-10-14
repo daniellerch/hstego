@@ -6,8 +6,6 @@
 #include "stc_embed_c.h"
 #include "stc_extract_c.h"
 
-extern "C" {
-
 typedef unsigned int uint;
 typedef unsigned char u8;
 
@@ -62,7 +60,5 @@ float stc_ml3_embed(uint cover_length, float* costs, int* stego_values, uint mes
 void stc_ml_extract(uint stego_length, int* stego, uint num_of_layers, uint* num_msg_bits, // input variables
                     uint stc_constraint_height,                                            // other input parameters
                     u8* message);                                                          // output variables
-
-}
 
 #endif // STC_ML_H

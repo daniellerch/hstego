@@ -3,8 +3,6 @@
 
 #include <string>
 
-extern "C" {
-
 typedef unsigned int u32;
 typedef unsigned short u16;
 typedef unsigned char u8;
@@ -33,5 +31,5 @@ private:
  */
 
 u32 *getMatrix(int width, int height);
-}
+
 #endif

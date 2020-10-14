@@ -9,19 +9,17 @@
 #include <iomanip>
 #include <string.h> // due to memcpy
 
+
 #include <boost/random/uniform_int.hpp>       // this is required for Marsene-Twister random number generator
 #include <boost/random/variate_generator.hpp>
 #include <boost/random/mersenne_twister.hpp>
 
+
 #include "stc_embed_c.h"
 #include "stc_extract_c.h"
 #include "sse_mathfun.h"    // library with optimized functions obtained from http://gruntthepeon.free.fr/ssemath/
-// SUPPORTING FUNCTIONS ***********************************************************************************************************
-/*********************************************************************************************************
- * DEBUGGING FUNCTIONS                                                                                   *
- * used to write arrays and matrices to file                                                             *
- *********************************************************************************************************/
-// write array into file
+
+// {{{ write_vector_to_file()
 template< class T > void write_vector_to_file( uint n, T *ptr, const char* file_name ) {
 
     std::ofstream f( file_name );
@@ -29,7 +27,9 @@ template< class T > void write_vector_to_file( uint n, T *ptr, const char* file_
         f << std::left << std::setw( 20 ) << i << std::left << std::setw( 20 ) << ptr[i] << std::endl;
     f.close();
 }
+// }}}
 
+// {{{ write_matrix_to_file()
 // write column-ordered matrix into file
 template< class T > void write_matrix_to_file( uint rows, uint columns, T *ptr, const char* file_name ) {
 
@@ -42,11 +42,11 @@ template< class T > void write_matrix_to_file( uint rows, uint columns, T *ptr, 
     }
     f.close();
 }
+// }}}
 
-/*********************************************************************************************************
- * Templates to handle aligned version of new and delete operators.                                      *
- *   These functions are necessary for creating arrays aligned address of certain multiples, such as 16. *
- *********************************************************************************************************/
+// {{{ align_*()
+// Templates to handle aligned version of new and delete operators.                                      
+// These functions are necessary for creating arrays aligned address of certain multiples, such as 16. 
 template< class T > T* align_new( unsigned int n, unsigned int align_size ) {
     char *ptr, *ptr2, *aligned_ptr;
     int align_mask = align_size - 1;
@@ -71,7 +71,9 @@ template< class T > void align_delete( T *ptr ) {
     p -= *ptr2;
     delete[] p;
 }
+// }}}
 
+// {{{ randperm()
 /* Generates random permutation of length n based on the MT random number generator with seed 'seed'. */
 void randperm( uint n, uint seed, uint* perm ) {
 
@@ -92,8 +94,9 @@ void randperm( uint n, uint seed, uint* perm ) {
     delete generator;
     delete randi;
 }
+// }}}
 
-/* Other functions */
+// {{{ sum_inplace()
 inline float sum_inplace( __m128 x ) {
     float y;
     // add all 4 terms from x together
@@ -102,7 +105,9 @@ inline float sum_inplace( __m128 x ) {
     _mm_store_ss( &y, x );
     return y;
 }
+// }}}
 
+// {{{ calc_entropy()
 float calc_entropy( uint n, uint k, float* costs, float lambda ) {
 
     float const LOG2 = log( 2.0 );
@@ -129,7 +134,9 @@ float calc_entropy( uint n, uint k, float* costs, float lambda ) {
     }
     return sum_inplace( entr ) / LOG2;
 }
+// }}}
 
+// {{{ get_lambda_entropy()
 float get_lambda_entropy( uint n, uint k, float *costs, float payload, float initial_lambda = 10 ) {
 
     float p1, p2, p3, lambda1, lambda2, lambda3;
@@ -166,7 +173,9 @@ float get_lambda_entropy( uint n, uint k, float *costs, float payload, float ini
     }
     return lambda1 + (lambda3 - lambda1) / 2;
 }
+// }}}
 
+// {{{ calc_distortion()
 float calc_distortion( uint n, uint k, float* costs, float lambda ) {
 
     __m128 eps = _mm_set1_ps( std::numeric_limits< float >::epsilon() );
@@ -190,7 +199,9 @@ float calc_distortion( uint n, uint k, float* costs, float lambda ) {
     }
     return sum_inplace( dist );
 }
+// }}}
 
+// {{{ get_lambda_distortion()
 float get_lambda_distortion( uint n, uint k, float *costs, float distortion, float initial_lambda = 10, float precision = 1e-3,
         uint iter_limit = 30 ) {
 
@@ -229,7 +240,9 @@ float get_lambda_distortion( uint n, uint k, float *costs, float distortion, flo
     }
     return lambda1 + (lambda3 - lambda1) / 2;
 }
+// }}}
 
+// {{{ binary_entropy_array()
 float binary_entropy_array( uint n, float *prob ) {
 
     float h = 0;
@@ -241,7 +254,9 @@ float binary_entropy_array( uint n, float *prob ) {
 
     return h / LOG2;
 }
+// }}}
 
+// {{{ entropy_array()
 float entropy_array( uint n, float* prob ) {
 
     double h = 0;
@@ -253,15 +268,20 @@ float entropy_array( uint n, float* prob ) {
 
     return h / LOG2;
 }
+// }}}
 
+// {{{ mod()
 inline uint mod( int x, int m ) {
     int tmp = x - (x / m) * m + m;
     return tmp % m;
 }
+// }}}
 
-// EMBEDDING ALGORITHMS ***********************************************************************************************************
 
-// INTERNAL EMBEDDING used in functions below
+
+/* EMBEDDING ALGORITHMS */
+
+// {{{ stc_embed_trial()
 void stc_embed_trial( uint n, float* cover_bit_prob0, u8* message, uint stc_constraint_height, uint &num_msg_bits, uint* perm, u8* stego,
         uint &trial, uint max_trials, const char* debugging_file = "cost.txt" ) {
 
@@ -293,14 +313,16 @@ void stc_embed_trial( uint n, float* cover_bit_prob0, u8* message, uint stc_cons
             if ( trial > max_trials ) {
                 delete[] cost;
                 delete[] cover;
-                throw stc_exception( "Maximum number of trials in layered construction exceeded.", 6 );
+                throw stc_exception( "Maximum number of trials in layered construction exceeded (2).", 6 );
             }
         }
     }
     delete[] cost;
     delete[] cover;
 }
+// }}}
 
+// {{{ check_costs()
 // SANITY CHECKS for cost arrays
 void check_costs( uint n, uint k, float *costs ) {
 
@@ -331,7 +353,9 @@ void check_costs( uint n, uint k, float *costs ) {
         }
     }
 }
+// }}}
 
+// {{{ stc_pm1_pls_embed()
 // MULTI-LAYERED EMBEDDING for plus/minus one changes
 // payload limited case - returns distortion
 float stc_pm1_pls_embed( uint cover_length, int* cover, float* costs, uint message_length, u8* message, // input variables
@@ -341,7 +365,9 @@ float stc_pm1_pls_embed( uint cover_length, int* cover, float* costs, uint messa
     return stc_pm1_dls_embed( cover_length, cover, costs, message_length, message, F_INF, stc_constraint_height, 0, wet_cost, stego,
             num_msg_bits, max_trials, coding_loss );
 }
+// }}}
 
+// {{{ stc_pm1_dls_embed()
 // distortion limited case - returns distortion
 float stc_pm1_dls_embed( uint cover_length, int* cover, float* costs, uint message_length, u8* message, float target_distortion, // input variables
                          uint stc_constraint_height, float expected_coding_loss, float wet_cost,   // other input parameters
@@ -371,7 +397,9 @@ float stc_pm1_dls_embed( uint cover_length, int* cover, float* costs, uint messa
 
     return dist;
 }
+// }}}
 
+// {{{ stc_pm2_dls_embed()
 // MULTI-LAYERED EMBEDDING for plus/minus one and two changes
 // payload limited case - returns distortion
 float stc_pm2_pls_embed( uint cover_length, int* cover, float* costs, uint message_length, u8* message, // input variables
@@ -381,7 +409,9 @@ float stc_pm2_pls_embed( uint cover_length, int* cover, float* costs, uint messa
     return stc_pm2_dls_embed( cover_length, cover, costs, message_length, message, F_INF, stc_constraint_height, 0, wet_cost, stego,
             num_msg_bits, max_trials, coding_loss );
 }
+// }}}
 
+// {{{ stc_pm2_dls_embed()
 // distortion limited case - returns distortion
 float stc_pm2_dls_embed( uint cover_length, int* cover, float* costs, uint message_length, u8* message, float target_distortion, // input variables
         uint stc_constraint_height, float expected_coding_loss, float wet_cost, // other input parameters
@@ -416,9 +446,11 @@ float stc_pm2_dls_embed( uint cover_length, int* cover, float* costs, uint messa
 
     return dist;
 }
+// }}}
 
 // GENERAL MULTI-LAYERED EMBEDDING
 
+// {{{ stc_ml1_embed()
 // algorithm for embedding into 1 layer, both payload- and distortion-limited case
 float stc_ml1_embed( uint cover_length, int* cover, short* direction, float* costs, uint message_length, u8* message,
         float target_distortion,// input variables
@@ -485,7 +517,7 @@ float stc_ml1_embed( uint cover_length, int* cover, short* direction, float* cos
                 delete[] stego1;
                 delete[] perm1;
                 delete[] c;
-                throw stc_exception( "Maximum number of trials in layered construction exceeded.", 6 );
+                throw stc_exception( "Maximum number of trials in layered construction exceeded (1).", 6 );
             }
         }
     }
@@ -511,7 +543,9 @@ float stc_ml1_embed( uint cover_length, int* cover, short* direction, float* cos
 
     return distortion;
 }
+// }}}
 
+// {{{ stc_ml2_embed()
 // algorithm for embedding into 2 layers with possibility to use only 1 layer, both payload- and distortion-limited cases
 float stc_ml2_embed( uint cover_length, float* costs, int* stego_values, uint message_length, u8* message, float target_distortion, // input variables
         uint stc_constraint_height, float expected_coding_loss, // other input parameters
@@ -624,7 +658,7 @@ float stc_ml2_embed( uint cover_length, float* costs, int* stego_values, uint me
     for ( uint i = 0; i < cover_length; i++ )
         p20[i] = p[i] + p[i + n]; // p20 = p(1,:)+p(2,:);         % probability of 2nd LSB of stego equal 0
     //num_msg_bits[1] = (uint) floor( binary_entropy_array( cover_length, p20 ) ); // msg_bits(2) = floor(sum(binary_entropy(p20)));    % number of msg bits embedded into 2nd LSBs
-    num_msg_bits[1] = (uint)message_length/2; // XXX
+    num_msg_bits[1] = (uint) (message_length/2 /*+ message_length%2*/ ); // XXX
 
     try {
         stc_embed_trial( cover_length, p20, message, stc_constraint_height, num_msg_bits[1], perm2, stego2, trial, max_trials, "cost2.txt" );
@@ -689,7 +723,9 @@ float stc_ml2_embed( uint cover_length, float* costs, int* stego_values, uint me
 
     return distortion;
 }
+// }}}
 
+// {{{ stc_ml3_embed()
 // algorithm for embedding into 3 layers, both payload- and distortion-limited case
 float stc_ml3_embed( uint cover_length, float* costs, int* stego_values, uint message_length, u8* message, float target_distortion, // input variables
         uint stc_constraint_height, float expected_coding_loss, // other input parameters
@@ -856,9 +892,12 @@ float stc_ml3_embed( uint cover_length, float* costs, int* stego_values, uint me
 
     return distortion;
 }
+// }}}
 
-// EXTRACTION ALGORITHMS **********************************************************************************************************
 
+/* EXTRACTION ALGORITHMS */
+
+// {{{ stc_ml_extract()
 /** Extraction algorithm for any l-layered construction.
  @param stego_length - ...
  @param stego - ...
@@ -888,3 +927,6 @@ void stc_ml_extract( uint stego_length, int* stego, uint num_of_layers, uint* nu
     delete[] stego_bits;
     delete[] perm;
 }
+// }}}
+
+

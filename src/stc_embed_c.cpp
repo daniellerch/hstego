@@ -8,6 +8,7 @@
 #include <sstream>
 #include "stc_embed_c.h"
 
+// {{{ aligned_malloc()
 void *aligned_malloc( unsigned int bytes, int align ) {
     int shift;
     char *temp = (char *) malloc( bytes + align );
@@ -18,18 +19,24 @@ void *aligned_malloc( unsigned int bytes, int align ) {
     temp[-1] = shift;
     return (void *) temp;
 }
+// }}}
 
+// {{{ aligned_free()
 void aligned_free( void *vptr ) {
     char *ptr = (char *) vptr;
     free( ptr - ptr[-1] );
     return;
 }
+// }}}
 
+// {{{ maxLessThan255()
 inline __m128i maxLessThan255( const __m128i v1, const __m128i v2 ) {
     register __m128i mask = _mm_set1_epi32( 0xffffffff );
     return _mm_max_epu8( _mm_andnot_si128( _mm_cmpeq_epi8( v1, mask ), v1 ), _mm_andnot_si128( _mm_cmpeq_epi8( v2, mask ), v2 ) );
 }
+// }}}
 
+// {{{ max16B()
 inline u8 max16B( __m128i maxp ) {
     u8 mtemp[4];
     maxp = _mm_max_epu8( maxp, _mm_srli_si128(maxp, 8) );
@@ -40,7 +47,9 @@ inline u8 max16B( __m128i maxp ) {
     if ( mtemp[1] > mtemp[0] ) return mtemp[1];
     else return mtemp[0];
 }
+// }}}
 
+// {{{ min16B()
 inline u8 min16B( __m128i minp ) {
     u8 mtemp[4];
     minp = _mm_min_epu8( minp, _mm_srli_si128(minp, 8) );
@@ -51,7 +60,9 @@ inline u8 min16B( __m128i minp ) {
     if ( mtemp[1] < mtemp[0] ) return mtemp[1];
     else return mtemp[0];
 }
+// }}}
 
+// {{{ stc_embed()
 double stc_embed( const u8 *vector, int vectorlength, const u8 *syndrome, int syndromelength, const void *pricevectorv, bool usefloat,
         u8 *stego, int matrixheight ) {
     int height, i, k, l, index, index2, parts, m, sseheight, altm, pathindex;
@@ -62,11 +73,7 @@ double stc_embed( const u8 *vector, int vectorlength, const u8 *syndrome, int sy
     u32 *path, *columns[2];
     int *matrices, *widths;
 
-    if ( matrixheight > 31 ) {
-        // throw stc_exception( "Submatrix height must not exceed 31.", 1 );
-        printf("Exception: Submatrix height must not exceed 31.\n");
-        exit(0);
-    }
+    if ( matrixheight > 31 ) throw stc_exception( "Submatrix height must not exceed 31.", 1 );
 
     height = 1 << matrixheight;
     colmask = height - 1;
@@ -77,13 +84,9 @@ double stc_embed( const u8 *vector, int vectorlength, const u8 *syndrome, int sy
     if ( stego != NULL ) {
         path = (u32*) malloc( vectorlength * parts * sizeof(u32) );
         if ( path == NULL ) {
-            printf("Not enough memory\n");
-            exit(0);
-            /*
             std::stringstream ss;
             ss << "Not enough memory (" << (unsigned int) (vectorlength * parts * sizeof(u32)) << " byte array could not be allocated).";
             throw stc_exception( ss.str(), 2 );
-            */
         }
         pathindex = 0;
     }
@@ -97,12 +100,10 @@ double stc_embed( const u8 *vector, int vectorlength, const u8 *syndrome, int sy
 
         invalpha = (double) vectorlength / syndromelength;
         if ( invalpha < 1 ) {
-            //free( matrices );
-            //free( widths );
-            //if ( stego != NULL ) free( path );
-            printf("Exception: The message cannot be longer than the cover object.\n");
-            exit(0);
-            //throw stc_exception( "The message cannot be longer than the cover object.", 3 );
+            free( matrices );
+            free( widths );
+            if ( stego != NULL ) free( path );
+            throw stc_exception( "The message cannot be longer than the cover object.", 3 );
         }
         /* THIS IS OBSOLETE. Algorithm still works for alpha >1/2. You need to take care of cases with too many Infs in cost vector.
          if(invalpha < 2) {
@@ -268,9 +269,7 @@ double stc_embed( const u8 *vector, int vectorlength, const u8 *syndrome, int sy
             free( columns[0] );
             free( columns[1] );
             if ( stego != NULL ) free( path );
-            //throw stc_exception( "No solution exist.", 4 );
-            printf("Exception: No solution exist.\n");
-            exit(0);
+            throw stc_exception( "No solution exist.", 4 );
         }
     } else {
         /*
@@ -308,9 +307,7 @@ double stc_embed( const u8 *vector, int vectorlength, const u8 *syndrome, int sy
                 free( columns[0] );
                 free( columns[1] );
                 if ( stego != NULL ) free( path );
-                // throw stc_exception( "Price vector limit exceeded.", 5 );
-                printf("Exception: Pirce vector limit exceeded.\n");
-                exit(0);
+                throw stc_exception( "Price vector limit exceeded.", 5 );
             }
 
             for ( k = 0; k < widths[index2]; k++, index++ ) {
@@ -410,9 +407,7 @@ double stc_embed( const u8 *vector, int vectorlength, const u8 *syndrome, int sy
                     free( columns[0] );
                     free( columns[1] );
                     if ( stego != NULL ) free( path );
-                    //throw stc_exception( "The syndrome is not in the syndrome matrix range.", 4 );
-                    printf("Exception: The syndrome is not in the syndrome matrix range.\n");
-                    exit(0);
+                    throw stc_exception( "The syndrome is not in the syndrome matrix range.", 4 );
                 }
 
                 if ( syndrome[index2] == 0 ) {
@@ -478,3 +473,4 @@ double stc_embed( const u8 *vector, int vectorlength, const u8 *syndrome, int sy
 
     return totalprice;
 }
+// }}}
