@@ -5,6 +5,7 @@ CURR_FILE=`readlink -f $0`
 DIR=`dirname $CURR_FILE`
 cd $DIR
 
+
 echo "------------------------------------------------------------------------"
 echo "text + grayscale png"
 echo "------------------------------------------------------------------------"
@@ -19,6 +20,8 @@ then
     diff input-secret.txt output-secret.txt
     exit 0
 fi
+
+
 
 
 echo "------------------------------------------------------------------------"
@@ -37,22 +40,6 @@ fi
 
 
 echo "------------------------------------------------------------------------"
-echo "text + grayscale jpg"
-echo "------------------------------------------------------------------------"
-rm -f output-secret*
-echo -n "Embed: "
-time hstego.py embed input-secret.txt cover.jpg stego.jpg p4ssw0rd
-echo -n "Extract: "
-time hstego.py extract stego.jpg output-secret.txt p4ssw0rd
-if [ "`sha1sum input-secret.txt|cut -d' ' -f1`" != "`sha1sum output-secret.txt|cut -d' ' -f1`" ]
-then
-    echo "Extracting error (3)!";
-    diff input-secret.txt output-secret.txt
-    exit 0
-fi
-
-
-echo "------------------------------------------------------------------------"
 echo "text + color png"
 echo "------------------------------------------------------------------------"
 rm -f output-secret*
@@ -63,6 +50,24 @@ time hstego.py extract stego_color.png output-secret.txt p4ssw0rd
 if [ "`sha1sum input-secret.txt|cut -d' ' -f1`" != "`sha1sum output-secret.txt|cut -d' ' -f1`" ]
 then
     echo "Extracting error (4)!";
+    diff input-secret.txt output-secret.txt
+    exit 0
+fi
+
+
+
+
+echo "------------------------------------------------------------------------"
+echo "text + grayscale jpg"
+echo "------------------------------------------------------------------------"
+rm -f output-secret*
+echo -n "Embed: "
+time hstego.py embed input-secret.txt cover.jpg stego.jpg p4ssw0rd
+echo -n "Extract: "
+time hstego.py extract stego.jpg output-secret.txt p4ssw0rd
+if [ "`sha1sum input-secret.txt|cut -d' ' -f1`" != "`sha1sum output-secret.txt|cut -d' ' -f1`" ]
+then
+    echo "Extracting error (3)!";
     diff input-secret.txt output-secret.txt
     exit 0
 fi
