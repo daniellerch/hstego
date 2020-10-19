@@ -5,7 +5,7 @@ import sys
 import getpass
 import hstegolib
 
-PAYLOAD = 0.40
+PAYLOAD = 0.10
 SPATIAL_EXT = ["png", "pgm", "tif"]
 
 def help():

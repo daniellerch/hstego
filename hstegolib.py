@@ -422,6 +422,8 @@ def J_UNIWARD_embed(input_img_path, msg_file_path, password, output_img_path, pa
     with open(msg_file_path, 'rb') as f:
         data = f.read()
 
+    if DEBUG: print("raw len:", len(data))
+
     I = imageio.imread(input_img_path)
     jpg = jpeg_load(input_img_path)
 

@@ -21,9 +21,10 @@ int stc_hide(
 
     const uint n = cover_length;       
     uint m = message_length;
-    uint trials = 10;          // if the message cannot be embedded due to large amount of 
-                               // wet pixels, then try again with smaller message. Try at most 10 times.
+    uint trials = 1;          // if the message cannot be embedded due to large amount of 
+                              // wet pixels, then try again with smaller message. Try at most 10 times.
 
+    //std::cout << "message_length: " << message_length << std::endl;
     unsigned int* num_msg_bits = new unsigned int[2];
     float dist = stc_pm1_pls_embed(n, cover, costs, m, message, h, 2147483647, stego, num_msg_bits, trials, 0); 
     //std::cout << "hide -->" << num_msg_bits[0] << ", " << num_msg_bits[1] << std::endl;
