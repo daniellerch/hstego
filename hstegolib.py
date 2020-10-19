@@ -19,7 +19,7 @@ from Crypto.Cipher import AES
 from Crypto.Random import get_random_bytes
 from Crypto.Util.Padding import pad, unpad
 
-
+MAX_PAYLOAD=0.40
 INF = 2**31-1
 DEBUG = False
 
@@ -168,22 +168,22 @@ def decrypt_uncompress(data, password):
 
 
 # {{{ hide_c()
-def hide_c(cover_array, costs_array, message_bits):
+def hide_c(cover_array, costs_array, message_bits, mx=255, mn=0):
 
     if DEBUG: print("\nBITS >>:", ''.join([str(b) for b in message_bits[:64]]))
 
     cover = (c_int*(len(cover_array)))()
     for i in range(len(cover_array)):
-        cover[i] = cover_array[i]
+        cover[i] = int(cover_array[i])
 
     # Prepare costs
     costs = (c_float*(len(costs_array)*3))()
     for i in range(len(costs_array)):
-        if cover[i]==0:
+        if cover[i]<=mn:
             costs[3*i+0] = INF
             costs[3*i+1] = 0
             costs[3*i+2] = costs_array[i]
-        elif cover[i]==255:
+        elif cover[i]>=mx:
             costs[3*i+0] = costs_array[i]
             costs[3*i+1] = 0 
             costs[3*i+2] = INF
@@ -211,7 +211,7 @@ def hide_c(cover_array, costs_array, message_bits):
 # }}}
 
 # {{{ hide()
-def hide(cover_matrix, cost_matrix, message_bits):
+def hide(cover_matrix, cost_matrix, message_bits, mx=255, mn=0):
     stego = None
  
     height, width = cover_matrix.shape
@@ -222,8 +222,8 @@ def hide(cover_matrix, cost_matrix, message_bits):
     data_len = struct.pack("!I", len(message_bits))
     data_len_bits = bytes_to_bit_list(data_len)
 
-    stego_array_1 = hide_c(cover_array[:64], costs_array[:64], data_len_bits)
-    stego_array_2 = hide_c(cover_array[64:], costs_array[64:], message_bits)
+    stego_array_1 = hide_c(cover_array[:64], costs_array[:64], data_len_bits, mx, mn)
+    stego_array_2 = hide_c(cover_array[64:], costs_array[64:], message_bits, mx, mn)
     stego_array = np.hstack((stego_array_1, stego_array_2))
 
 
@@ -238,7 +238,7 @@ def unhide_c(stego_array, message_len):
 
     stego = (c_int*(len(stego_array)))()
     for i in range(len(stego_array)):
-        stego[i] = stego_array[i]
+        stego[i] = int(stego_array[i])
 
     extracted_message = (c_ubyte*len(stego_array))()
     s = stc.stc_unhide(len(stego_array), stego, message_len, extracted_message)
@@ -305,7 +305,7 @@ def HILL(I):
 # }}}
 
 # {{{ HILL_embed()
-def HILL_embed(input_img_path, msg_file_path, password, output_img_path, payload=0.10):
+def HILL_embed(input_img_path, msg_file_path, password, output_img_path):
 
     with open(msg_file_path, 'rb') as f:
         data = f.read()
@@ -331,8 +331,8 @@ def HILL_embed(input_img_path, msg_file_path, password, output_img_path, payload
 
     for channel in range(n_channels):
 
-        if len(msg_bits[channel])>width*height*payload*8:
-            print("Message too long:", len(msg_bits[channel]), "bits >", width*height*payload*8, "max bits")
+        if len(msg_bits[channel])>width*height*MAX_PAYLOAD*8:
+            print("Message too long:", len(msg_bits[channel]), "bits >", width*height*MAX_PAYLOAD*8, "max bits")
             sys.exit(-1)
 
         I[:,:,channel] = hide(I[:,:,channel], cost_matrix[channel], msg_bits[channel])
@@ -345,7 +345,7 @@ def HILL_embed(input_img_path, msg_file_path, password, output_img_path, payload
 # }}}   
 
 # {{{ HILL_extract()
-def HILL_extract(stego_img_path, password, output_msg_path, payload=0.10):
+def HILL_extract(stego_img_path, password, output_msg_path):
 
     I = imageio.imread(stego_img_path)
 
@@ -456,7 +456,7 @@ def J_UNIWARD(coef_arrays, quant_tables, spatial):
 # }}}
 
 # {{{ J_UNIWARD_embed()
-def J_UNIWARD_embed(input_img_path, msg_file_path, password, output_img_path, payload=0.10):
+def J_UNIWARD_embed(input_img_path, msg_file_path, password, output_img_path):
 
     with open(msg_file_path, 'rb') as f:
         data = f.read()
@@ -488,63 +488,21 @@ def J_UNIWARD_embed(input_img_path, msg_file_path, password, output_img_path, pa
 
     for channel in range(n_channels):
 
-        if len(msg_bits[channel])>width*height*payload*8:
-            print("Message too long:", len(msg_bits[channel]), "bits >", width*height*payload*8, "max bits")
+        if len(msg_bits[channel])>width*height*MAX_PAYLOAD*8:
+            print("Message too long:", len(msg_bits[channel]), "bits >", 
+                  width*height*MAX_PAYLOAD*8, "max bits")
             sys.exit(-1)
 
-        # Prepare cover image
-        cover = (c_int*(width*height))()
-        idx=0
-        for j in range(height):
-            for i in range(width):
-                cover[idx] = int(jpg["coef_arrays"][channel][i, j])
-                idx += 1
+        jpg["coef_arrays"][channel] = hide(jpg["coef_arrays"][channel], 
+            cost_matrix[channel], msg_bits[channel], mx=1016, mn=-1016)
 
-        # Prepare costs
-        costs = (c_float*(width*height*3))()
-        idx=0
-        for j in range(height):
-            for i in range(width):
-                if cover[idx]<=1016:
-                    costs[3*idx+0] = INF
-                    costs[3*idx+1] = 0
-                    costs[3*idx+2] = cost_matrix[channel][i, j]
-                elif cover[idx]>=1016:
-                    costs[3*idx+0] = cost_matrix[channel][i, j]
-                    costs[3*idx+1] = 0 
-                    costs[3*idx+2] = INF
-                else:
-                    costs[3*idx+0] = cost_matrix[channel][i, j]
-                    costs[3*idx+1] = 0
-                    costs[3*idx+2] = cost_matrix[channel][i, j]
-                idx += 1
-
-        m = int(width*height*payload)
-        if DEBUG: print("TO HIDE:", m)
-        message = (c_ubyte*m)()
-        for i in range(m):
-            if i<len(msg_bits[channel]):
-                message[i] = msg_bits[channel][i]
-            else:
-                message[i] = 0
-
-        # Hide message
-        stego_coeffs = (c_int*(width*height))()
-        a = stc.stc_hide(width*height, cover, costs, m, message, stego_coeffs)
-
-        # Save output message
-        idx=0
-        for j in range(height):
-            for i in range(width):
-                jpg["coef_arrays"][channel][i, j] = stego_coeffs[idx]
-                idx += 1
 
     jpeg_save(jpg, output_img_path)
 
 # }}}   
 
 # {{{ J_UNIWARD_extract()
-def J_UNIWARD_extract(stego_img_path, password, output_msg_path, payload=0.10):
+def J_UNIWARD_extract(stego_img_path, password, output_msg_path):
 
     jpg = jpeg_load(stego_img_path)
     I = imageio.imread(stego_img_path)
@@ -558,59 +516,14 @@ def J_UNIWARD_extract(stego_img_path, password, output_msg_path, payload=0.10):
         height, width, _ = I.shape
         n_channels = 3
 
-    cleartext_list = []
+    cleartext = []
     
-    if DEBUG: print("\n-- EXTRACT DATA --")
     for channel in range(n_channels):
-
-        # Prepare stego image
-        stego = (c_int*(width*height))()
-        idx=0
-        for j in range(height):
-            for i in range(width):
-                stego[idx] = int(jpg["coef_arrays"][channel][i, j])
-                idx += 1
-
-        # Extract the message
-        n = width*height;
-        m = int(n*payload)
-        if DEBUG: print("TO EXTRACT:", m)
-        extracted_message = (c_ubyte*m)()
-        s = stc.stc_unhide(n, stego, m, extracted_message)
-
-        if DEBUG: print("BITS:", [b for b in extracted_message[:20]])
-
-        # Save the message
-        enc = bytearray()
-        idx=0
-        bitidx=0
-        bitval=0
-        for b in extracted_message:
-            if bitidx==8:
-                enc.append(bitval)
-                bitidx=0
-                bitval=0
-            bitval |= b<<bitidx
-            bitidx+=1
-
-        enc = bytes(enc)   
-        if DEBUG: print("GZIP+LEN+ENC:", [b for b in enc[:10]])
-
-        cleartext = decrypt(enc, password)
-        cleartext_list.append(cleartext)
- 
-
-    content = bytes()
-    for cleartext in cleartext_list:
-        if DEBUG: print("GZIP+LEN:", [b for b in cleartext[:10]])
-        content_len = struct.unpack_from("!I", cleartext, 0)[0]
-        data = cleartext[4:content_len+4]
-        if DEBUG: print("GZIP:", [b for b in data[:10]])
-        content += gzip.decompress(data)
-        if DEBUG: print("DATA:", [b for b in content[:10]])
+        enc = unhide(jpg["coef_arrays"][channel])
+        cleartext += decrypt_uncompress(enc, password)
 
     f = open(output_msg_path, 'wb')
-    f.write(content)
+    f.write(bytes(cleartext))
     f.close()
 # }}}
 
