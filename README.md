@@ -3,14 +3,19 @@ Hard to detect image steganography
 
 
 
-## BUILD ONLY
-python3 setup.py build
-
 ## INSTALL
-pip install .
+sudo apt install libboost-random-dev
+pip3 install imageio scipy pycryptodome
+pip3 install .
 
 ## UNINSTALL
-pup uninstall stego-image
+pup3 uninstall hstego
+
+
+-- 
+
+## BUILD ONLY
+python3 setup.py build
 
 ## CREATE WHEEL
 python3 setup.py bdist_wheel
