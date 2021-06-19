@@ -1,7 +1,7 @@
-# stego-image
-Hard to detect image steganography.
+# HStego
+HStego: Hard to detect image steganography.
 
-Hstego is a tool for steganography on bitmap and JPEG images.
+HStego is a tool for hiding data in bitmap and JPEG images.
 This tool uses some of the most advanced steganography methods known today, along with an upper limit on the amount of data that can be hidden so that it cannot be reliably detected by modern steganography tools.
 
 
