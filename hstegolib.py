@@ -163,11 +163,12 @@ def jpg_channel_capacity(jpg, channel):
     return f*128
 # }}}
 
-# {{{ jpg_real_channel_capacity()
-def jpg_real_channel_capacity(jpg, channel):
-    """ real channel capacity in bytes """
+# {{{ jpg_accepted_channel_capacity()
+def jpg_accepted_channel_capacity(jpg, channel):
+    """ accepted channel capacity in bytes """
+    tolerance = 1.2
     nz_coeff = np.count_nonzero(jpg["coef_arrays"][channel])
-    capacity = int((nz_coeff*MAX_PAYLOAD)/8)
+    capacity = int((nz_coeff*MAX_PAYLOAD*tolerance)/8)
     return capacity
 # }}}
 
@@ -494,7 +495,7 @@ def J_UNIWARD_embed(input_img_path, msg_file_path, password, output_img_path):
         n_channels = 1
         nz_coeff = np.count_nonzero(jpg["coef_arrays"][0])
         msg_bits = [encrypt_to_bits(data, password)]
-        capacity = jpg_real_channel_capacity(jpg, 0)
+        capacity = jpg_accepted_channel_capacity(jpg, 0)
 
         #print("real size:", len(msg_bits[0])/8, ", max size:", capacity)
         if len(msg_bits[0])//8 > capacity:
@@ -506,22 +507,21 @@ def J_UNIWARD_embed(input_img_path, msg_file_path, password, output_img_path):
     elif len(I.shape) == 3:
         height, width, _ = I.shape
         n_channels = 3
-        c0 = jpg_real_channel_capacity(jpg, 0)
-        c1 = jpg_real_channel_capacity(jpg, 1)
-        c2 = jpg_real_channel_capacity(jpg, 2)
+        c0 = jpg_channel_capacity(jpg, 0)
+        c1 = jpg_channel_capacity(jpg, 1)
+        c2 = jpg_channel_capacity(jpg, 2)
 
         enc = encrypt_to_bits(data, password)
         msg_bits = [ encrypt_to_bits(data[:c0], password), 
                      encrypt_to_bits(data[c0:c0+c1], password), 
                      encrypt_to_bits(data[c0+c1:], password) ]
 
-        capacity = [c0, c1, c2]
         for channel in range(n_channels):
-
+            capacity = jpg_accepted_channel_capacity(jpg, channel)
             #print("real size:", len(msg_bits[channel])//8, ", max size:", capacity[channel])
-            if len(msg_bits[channel])//8 > capacity[channel]:
+            if len(msg_bits[channel])//8 > capacity:
                 print("Message too long:", len(msg_bits[channel])//8, "bytes >", 
-                      capacity[channel], "max bytes")
+                      capacity, "max bytes")
                 sys.exit(-1)
 
         cost_matrix = [J_UNIWARD(jpg["coef_arrays"][0], jpg["quant_tables"][0], I[:,:,0]), 
