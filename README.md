@@ -5,8 +5,8 @@ HStego is a tool for hiding data in bitmap and JPEG images.
 This tool uses some of the most advanced steganography methods known today, along with an upper limit on the amount of data that can be hidden so that it cannot be reliably detected by modern steganography tools.
 
 
-> **WARNING:** This tool is in a ALPHA stage. 
-> Use at your own risk.
+> **WARNING:** This tool is in a ALPHA stage. Use at your own risk.
+> If you find any problem, please open a [issue](https://github.com/daniellerch/hstego/issues).
 
 
 ## Install
@@ -84,7 +84,23 @@ hstegolib.J_UNIWARD_extract("stego.png", "MyP4ssw0rd101", "content.txt")
 ```
 
 
-            
+## Acknowledgments:
+
+HStego implements the J-UNIWARD method for JPEG images and the HILL method for bitmap images. These
+methods are described in the following papers:
+
+
+- Universal Distortion Function for Steganography in an Arbitrary Domain by Vojtěch Holub, Jessica 
+  Fridrich and Tomáš Denemark
+
+- A New Cost Function for Spatial Image Steganography by Bin Li, Ming Wang, Jiwu Huang and Xiaolong Li.
+
+
+Part of the C/C++ code used by HStego comes from the [Digital Data Embedding Laboratory](http://dde.binghamton.edu/download/).
+
+This software would not have been possible without their excellent work.
+
+
 
 
 
