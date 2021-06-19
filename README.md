@@ -6,7 +6,8 @@ This tool uses some of the most advanced steganography methods known today, alon
 
 
 > **WARNING:** This tool is in a ALPHA stage. Use at your own risk.
-> If you find any problem, please open a [issue](https://github.com/daniellerch/hstego/issues).
+
+**If you find any problem, please open a [issue](https://github.com/daniellerch/hstego/issues).**
 
 
 ## Install
