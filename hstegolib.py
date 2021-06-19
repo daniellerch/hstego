@@ -2,7 +2,6 @@
 import os
 import sys
 import glob
-import gzip
 import copy
 import errno
 import random
@@ -145,26 +144,33 @@ def bytes_to_bit_list(data):
     return array
 # }}}
 
-# {{{ compress_encrypt_to_bits()
-def compress_encrypt_to_bits(data, password):
+# {{{ encrypt_to_bits()
+def encrypt_to_bits(data, password):
     if DEBUG: print("\nRAW >>:", [x for x in data[:10]], len(data))
-    data = gzip.compress(data)
-    if DEBUG: print("\nZIP >>:", [x for x in data[:10]], len(data))
     enc = encrypt(data, password)
     if DEBUG: print("\nENC >>:", [x for x in enc[:10]], len(enc))
     array = bytes_to_bit_list(enc)
     return array
 # }}}
 
-# {{{ decrypt_uncompress()
-def decrypt_uncompress(data, password):
-    if DEBUG: print("\nENC <<:", [x for x in data[:10]], len(data))
-    dec = decrypt(data, password)
-    if DEBUG: print("\nZIP <<:", [x for x in dec[:10]], len(dec))
-    raw = gzip.decompress(dec)
-    if DEBUG: print("\nRAW <<:", [x for x in raw[:10]], len(raw))
-    return raw
+# {{{ jpg_channel_capacity()
+def jpg_channel_capacity(jpg, channel):
+    """ channel capacity in bytes """
+    nz_coeff = np.count_nonzero(jpg["coef_arrays"][channel])
+    capacity = int((nz_coeff*MAX_PAYLOAD)/8)
+    capacity -= 32 # data for header
+    f = capacity // 128
+    return f*128
 # }}}
+
+# {{{ jpg_real_channel_capacity()
+def jpg_real_channel_capacity(jpg, channel):
+    """ real channel capacity in bytes """
+    nz_coeff = np.count_nonzero(jpg["coef_arrays"][channel])
+    capacity = int((nz_coeff*MAX_PAYLOAD)/8)
+    return capacity
+# }}}
+
 
 
 # {{{ hide_c()
@@ -317,16 +323,19 @@ def HILL_embed(input_img_path, msg_file_path, password, output_img_path):
         n_channels = 1
         cost_matrix = [HILL(I)]
         I = I[..., np.newaxis]
-        msg_bits = [compress_encrypt_to_bits(data, password)]
+        msg_bits = [encrypt_to_bits(data, password)]
 
     elif len(I.shape) == 3:
         height, width, _ = I.shape
         n_channels = 3
-        cost_matrix = [HILL(I[:,:,0]), HILL(I[:,:,1]), HILL(I[:,:,2])]
+
         l = len(data)//3
-        msg_bits = [ compress_encrypt_to_bits(data[:l], password), 
-                     compress_encrypt_to_bits(data[l:2*l], password), 
-                     compress_encrypt_to_bits(data[2*l:], password) ]
+        enc = encrypt_to_bits(data, password)
+        msg_bits = [ encrypt_to_bits(data[:l], password), 
+                     encrypt_to_bits(data[l:2*l], password), 
+                     encrypt_to_bits(data[2*l:], password) ]
+
+        cost_matrix = [HILL(I[:,:,0]), HILL(I[:,:,1]), HILL(I[:,:,2])]
 
 
     for channel in range(n_channels):
@@ -362,8 +371,7 @@ def HILL_extract(stego_img_path, password, output_msg_path):
     for channel in range(n_channels):
 
         enc = unhide(I[:,:,channel])
-
-        cleartext += decrypt_uncompress(enc, password)
+        cleartext += decrypt(enc, password)
 
     f = open(output_msg_path, 'wb')
     f.write(bytes(cleartext))
@@ -376,7 +384,12 @@ def HILL_capacity(img_path):
     I = imageio.imread(img_path)
     for i in I.shape:
         m *= i
-    print("Capacity:", int((m*MAX_PAYLOAD)/8), "bytes")
+
+    capacity = int((m*MAX_PAYLOAD)/8)
+    capacity -= 8*3 # data for header
+    f = capacity // 128
+    capacity = f*128 # neares 128 multiple
+    print("Capacity:", capacity, "bytes")
 # }}} 
 
 
@@ -475,33 +488,50 @@ def J_UNIWARD_embed(input_img_path, msg_file_path, password, output_img_path):
     I = imageio.imread(input_img_path)
     jpg = jpeg_load(input_img_path)
 
+
     if len(I.shape) == 2:
         height, width = I.shape
         n_channels = 1
+        nz_coeff = np.count_nonzero(jpg["coef_arrays"][0])
+        msg_bits = [encrypt_to_bits(data, password)]
+        capacity = jpg_real_channel_capacity(jpg, 0)
+
+        #print("real size:", len(msg_bits[0])/8, ", max size:", capacity)
+        if len(msg_bits[0])//8 > capacity:
+            print("Message too long:", len(msg_bits[0])//8, "bytes >", capacity, "max bytes")
+            sys.exit(-1)
+
         cost_matrix = [J_UNIWARD(jpg["coef_arrays"][0], jpg["quant_tables"][0], I)]
-        I = I[..., np.newaxis]
-        msg_bits = [compress_encrypt_to_bits(data, password)]
 
     elif len(I.shape) == 3:
         height, width, _ = I.shape
         n_channels = 3
+        c0 = jpg_real_channel_capacity(jpg, 0)
+        c1 = jpg_real_channel_capacity(jpg, 1)
+        c2 = jpg_real_channel_capacity(jpg, 2)
+
+        enc = encrypt_to_bits(data, password)
+        msg_bits = [ encrypt_to_bits(data[:c0], password), 
+                     encrypt_to_bits(data[c0:c0+c1], password), 
+                     encrypt_to_bits(data[c0+c1:], password) ]
+
+        capacity = [c0, c1, c2]
+        for channel in range(n_channels):
+
+            #print("real size:", len(msg_bits[channel])//8, ", max size:", capacity[channel])
+            if len(msg_bits[channel])//8 > capacity[channel]:
+                print("Message too long:", len(msg_bits[channel])//8, "bytes >", 
+                      capacity[channel], "max bytes")
+                sys.exit(-1)
+
         cost_matrix = [J_UNIWARD(jpg["coef_arrays"][0], jpg["quant_tables"][0], I[:,:,0]), 
                        J_UNIWARD(jpg["coef_arrays"][1], jpg["quant_tables"][1], I[:,:,1]), 
                        J_UNIWARD(jpg["coef_arrays"][2], jpg["quant_tables"][1], I[:,:,2])]
-        l = len(data)//3
-        msg_bits = [ compress_encrypt_to_bits(data[:l], password), 
-                     compress_encrypt_to_bits(data[l:2*l], password), 
-                     compress_encrypt_to_bits(data[2*l:], password) ]
+
 
 
 
     for channel in range(n_channels):
-
-        if len(msg_bits[channel])>width*height*MAX_PAYLOAD*8:
-            print("Message too long:", len(msg_bits[channel]), "bits >", 
-                  width*height*MAX_PAYLOAD*8, "max bits")
-            sys.exit(-1)
-
         jpg["coef_arrays"][channel] = hide(jpg["coef_arrays"][channel], 
             cost_matrix[channel], msg_bits[channel], mx=1016, mn=-1016)
 
@@ -529,7 +559,7 @@ def J_UNIWARD_extract(stego_img_path, password, output_msg_path):
     
     for channel in range(n_channels):
         enc = unhide(jpg["coef_arrays"][channel])
-        cleartext += decrypt_uncompress(enc, password)
+        cleartext += decrypt(enc, password)
 
     f = open(output_msg_path, 'wb')
     f.write(bytes(cleartext))
@@ -538,14 +568,11 @@ def J_UNIWARD_extract(stego_img_path, password, output_msg_path):
 
 # {{{ J_UNIWARD_capacity()
 def J_UNIWARD_capacity(img_path):
-
     jpg = jpeg_load(img_path)
-
-    nz_coeff = 0
+    capacity = 0
     for i in range(jpg["image_components"]):
-        dct = jpg["coef_arrays"][i]
-        nz_coeff += np.count_nonzero(dct) - np.count_nonzero(dct[::8, ::8])
-    print("Capacity:", int((nz_coeff*MAX_PAYLOAD)/8), "bytes")
+        capacity += jpg_channel_capacity(jpg, i)
+    print("Capacity:", capacity, "bytes")
     
 # }}} 
 

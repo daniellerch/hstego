@@ -119,13 +119,6 @@ if __name__ == "__main__":
     elif sys.argv[1] == "stc-test":
         hstegolib.stc_test(100)
 
-    elif sys.argv[1] == "sim":
-        input_dir = sys.argv[2]
-        output_dir = sys.argv[3]
-        payload = sys.argv[4]
-
-        # XXX
-
     else:
         help()
 
