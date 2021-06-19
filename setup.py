@@ -13,7 +13,9 @@ m_stc = Extension('hstego_stc_extension',
                              'src/stc_interface.cpp',
                              'src/stc_ml_c.cpp'],
                   extra_compile_args = ['-std=c++98', '-Wno-narrowing'],
-                  libraries = ['jpeg'])
+                  )
+
+
 
 
 here = os.path.abspath(os.path.dirname(__file__))
