@@ -13,6 +13,7 @@ def help():
     print("\nUsage:")
     print("  ", sys.argv[0], "embed <input msg file> <input cover image> <output stego image> [password]")
     print("  ", sys.argv[0], "extract <input stego image> <output msg file> [password]")
+    print("  ", sys.argv[0], "capacity <image>")
 
     print("\nExample:")
     print("  ", sys.argv[0], "embed input-secret.txt cover.png stego.png p4ssw0rd")
@@ -104,8 +105,27 @@ if __name__ == "__main__":
         #except Exception as e:
         #    print("Error, information can not be extracted:", e)
 
+    elif sys.argv[1] == "capacity":
+        img_path = sys.argv[2]
+        if is_ext(img_path, SPATIAL_EXT):
+            hstegolib.HILL_capacity(img_path)
+        elif is_ext(img_path, "jpg"):
+            hstegolib.J_UNIWARD_capacity(img_path)
+        else:
+            print("File extension not supported")
+ 
+
+
     elif sys.argv[1] == "stc-test":
         hstegolib.stc_test(100)
+
+    elif sys.argv[1] == "sim":
+        input_dir = sys.argv[2]
+        output_dir = sys.argv[3]
+        payload = sys.argv[4]
+
+        # XXX
+
     else:
         help()
 

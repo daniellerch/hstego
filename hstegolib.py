@@ -370,6 +370,15 @@ def HILL_extract(stego_img_path, password, output_msg_path):
     f.close()
 # }}}
 
+# {{{ HILL_capacity()
+def HILL_capacity(img_path):
+    m = 1
+    I = imageio.imread(img_path)
+    for i in I.shape:
+        m *= i
+    print("Capacity:", int((m*MAX_PAYLOAD)/8), "bytes")
+# }}} 
+
 
 
 # {{{ J_UNIWARD()
@@ -527,6 +536,18 @@ def J_UNIWARD_extract(stego_img_path, password, output_msg_path):
     f.close()
 # }}}
 
+# {{{ J_UNIWARD_capacity()
+def J_UNIWARD_capacity(img_path):
+
+    jpg = jpeg_load(img_path)
+
+    nz_coeff = 0
+    for i in range(jpg["image_components"]):
+        dct = jpg["coef_arrays"][i]
+        nz_coeff += np.count_nonzero(dct) - np.count_nonzero(dct[::8, ::8])
+    print("Capacity:", int((nz_coeff*MAX_PAYLOAD)/8), "bytes")
+    
+# }}} 
 
 # {{{ stc_test()
 def stc_test(n_iter, width=512, height=512):
