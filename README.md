@@ -91,10 +91,9 @@ HStego implements the J-UNIWARD method for JPEG images and the HILL method for b
 methods are described in the following papers:
 
 
-- Universal Distortion Function for Steganography in an Arbitrary Domain by Vojtěch Holub, Jessica 
-  Fridrich and Tomáš Denemark
+- [Universal Distortion Function for Steganography in an Arbitrary Domain](https://doi.org/10.1186/1687-417X-2014-1) by Vojtěch Holub, Jessica Fridrich and Tomáš Denemark
 
-- A New Cost Function for Spatial Image Steganography by Bin Li, Ming Wang, Jiwu Huang and Xiaolong Li.
+- [A New Cost Function for Spatial Image Steganography](https://doi.org/10.1109/ICIP.2014.7025854) by Bin Li, Ming Wang, Jiwu Huang and Xiaolong Li.
 
 
 Part of the C/C++ code used by HStego comes from the [Digital Data Embedding Laboratory](http://dde.binghamton.edu/download/).
