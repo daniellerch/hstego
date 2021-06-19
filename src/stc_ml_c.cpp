@@ -9,11 +9,11 @@
 #include <iomanip>
 #include <string.h> // due to memcpy
 
-
+/*
 #include <boost/random/uniform_int.hpp>       // this is required for Marsene-Twister random number generator
 #include <boost/random/variate_generator.hpp>
 #include <boost/random/mersenne_twister.hpp>
-
+*/
 
 #include "stc_embed_c.h"
 #include "stc_extract_c.h"
@@ -77,22 +77,25 @@ template< class T > void align_delete( T *ptr ) {
 /* Generates random permutation of length n based on the MT random number generator with seed 'seed'. */
 void randperm( uint n, uint seed, uint* perm ) {
 
+    /*
     boost::mt19937 *generator = new boost::mt19937( seed );
     boost::variate_generator< boost::mt19937, boost::uniform_int< > > *randi = new boost::variate_generator< boost::mt19937,
         boost::uniform_int< > >( *generator, boost::uniform_int< >( 0, INT_MAX ) );
+    */
 
     // generate random permutation - this is used to shuffle cover pixels to randomize the effect of different neighboring pixels
     for ( uint i = 0; i < n; i++ )
         perm[i] = i;
     for ( uint i = 0; i < n; i++ ) {
-        uint j = (*randi)() % (n - i);
+        //uint j = (*randi)() % (n - i);
+        uint j = rand() % (n - i);
         uint tmp = perm[i];
         perm[i] = perm[i + j];
         perm[i + j] = tmp;
     }
 
-    delete generator;
-    delete randi;
+    //delete generator;
+    //delete randi;
 }
 // }}}
 
@@ -205,12 +208,13 @@ float calc_distortion( uint n, uint k, float* costs, float lambda ) {
 float get_lambda_distortion( uint n, uint k, float *costs, float distortion, float initial_lambda = 10, float precision = 1e-3,
         uint iter_limit = 30 ) {
 
-    float dist1, dist2, dist3, lambda1, lambda2, lambda3;
+    //float dist1, dist2, dist3, lambda1, lambda2, lambda3;
+    float dist2, dist3, lambda1, lambda2, lambda3;
     int j = 0;
     uint iterations = 0;
 
     lambda1 = 0;
-    dist1 = calc_distortion( n, k, costs, lambda1 );
+    //dist1 = calc_distortion( n, k, costs, lambda1 );
     lambda3 = initial_lambda;
     dist2 = F_INF; // this is just an initial value
     lambda2 = initial_lambda;
@@ -234,7 +238,7 @@ float get_lambda_distortion( uint n, uint k, float *costs, float distortion, flo
             dist3 = dist2;
         } else {
             lambda1 = lambda2;
-            dist1 = dist2;
+            //dist1 = dist2;
         }
         iterations++; // this is for monitoring the number of iterations
     }

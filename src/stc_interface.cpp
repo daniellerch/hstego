@@ -22,7 +22,8 @@ int stc_hide(uint cover_length, int* cover, float* costs,
 
     //std::cout << "message_length: " << message_length << std::endl;
     unsigned int* num_msg_bits = new unsigned int[2];
-    float dist = stc_pm1_pls_embed(n, cover, costs, m, message, h, 2147483647, stego, num_msg_bits, trials, 0); 
+    //float dist = stc_pm1_pls_embed(n, cover, costs, m, message, h, 2147483647, stego, num_msg_bits, trials, 0); 
+    stc_pm1_pls_embed(n, cover, costs, m, message, h, 2147483647, stego, num_msg_bits, trials, 0); 
     //std::cout << "hide -->" << num_msg_bits[0] << ", " << num_msg_bits[1] << std::endl;
     delete[] num_msg_bits;
 

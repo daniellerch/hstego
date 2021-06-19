@@ -12,7 +12,7 @@ m_stc = Extension('hstego_stc_extension',
                              'src/stc_extract_c.cpp',
                              'src/stc_interface.cpp',
                              'src/stc_ml_c.cpp'],
-                  extra_compile_args = ['-std=c++98'],
+                  extra_compile_args = ['-std=c++98', '-Wno-narrowing'],
                   libraries = ['jpeg'])
 
 
@@ -21,7 +21,7 @@ with open(os.path.join(here, 'README.md'), encoding='utf-8') as f:
         long_description = f.read()
 
 setup(name = 'hstego',
-      version = '1.0',
+      version = '0.1',
       author="Daniel Lerch",
       author_email="dlerch@gmail.com",
       url="https://github.com/daniellerch/hstego",

@@ -70,7 +70,8 @@ double stc_embed( const u8 *vector, int vectorlength, const u8 *syndrome, int sy
     double totalprice;
 
     u8 *ssedone;
-    u32 *path, *columns[2];
+    u32 *path = NULL;
+    u32 *columns[2];
     int *matrices, *widths;
 
     if ( matrixheight > 31 ) throw stc_exception( "Submatrix height must not exceed 31.", 1 );
