@@ -1,5 +1,5 @@
 # HStego
-HStego: Hard to detect image steganography.
+**HStego:** Hard to detect image steganography.
 
 HStego is a tool for hiding data in bitmap and JPEG images.
 This tool uses some of the most advanced steganography methods known today, along with an upper limit on the amount of data that can be hidden so that it cannot be reliably detected by modern steganography tools.
@@ -10,37 +10,24 @@ This tool uses some of the most advanced steganography methods known today, alon
 
 
 ## Install
+
+You can install HStego with the following commands:
 ```bash 
 pip3 install imageio scipy pycryptodome
 pip3 install git+https://github.com/daniellerch/hstego
 ```
 
-## Uninstall
+Uninstall with:
 ```bash 
 pip3 uninstall hstego
 ```
 
-## Other useful commands
-
-### Build only
-```bash 
-python3 setup.py build
-```
-
-### Create wheel
-```bash 
-python3 setup.py bdist_wheel
-```
-
-### Install whl
-```bash 
-pip3 install dist/hstego-1.0-cp37-cp37m-linux_x86_64.whl
-```
-
-
 
 
 ## Command line examples:
+
+HStego is a command line tool. Here are some examples of how to use it.
+
 
 Example using bitmap images:
 
@@ -69,6 +56,7 @@ hstego.py extract stego.jpg content.txt MyP4ssw0rd101
 
 ## Python examples
 
+HStego can also be used as a Python library. Check out the following examples:
 
 Example using bitmap images:
 
