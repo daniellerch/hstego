@@ -5,6 +5,9 @@ HStego is a tool for hiding data in bitmap and JPEG images.
 This tool uses some of the most advanced steganography methods known today, along with an upper limit on the amount of data that can be hidden so that it cannot be reliably detected by modern steganography tools.
 
 
+> **WARNING:** This tool is in a ALPHA stage. 
+> Use at your own risk.
+
 
 ## Install
 ```bash 
