@@ -23,13 +23,13 @@ MAX_PAYLOAD=0.40
 INF = 2**31-1
 DEBUG = False
 
-jpg_candidates = glob.glob(os.path.join(os.path.dirname(__file__), 'jpeg_toolbox_extension.*.so'))
+jpg_candidates = glob.glob(os.path.join(os.path.dirname(__file__), 'hstego_jpeg_toolbox_extension.*.so'))
 if not jpg_candidates:
     print("JPEG Toolbos library not found:", os.path.dirname(__file__))
     sys.exit(0)
 jpeg = CDLL(jpg_candidates[0])
 
-stc_candidates = glob.glob(os.path.join(os.path.dirname(__file__), 'stc_extension.*.so'))
+stc_candidates = glob.glob(os.path.join(os.path.dirname(__file__), 'hstego_stc_extension.*.so'))
 if not stc_candidates:
     print("SRC library not found:", os.path.dirname(__file__))
     sys.exit(0)

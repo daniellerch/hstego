@@ -1,11 +1,11 @@
 import os
 from setuptools import setup, Extension
 
-m_jpg = Extension('jpeg_toolbox_extension', 
+m_jpg = Extension('hstego_jpeg_toolbox_extension', 
                   sources = ['src/jpeg_toolbox_extension.c'], 
                   libraries = ['jpeg'])
 
-m_stc = Extension('stc_extension', 
+m_stc = Extension('hstego_stc_extension', 
                   include_dirs = ['src/'],
                   sources = ['src/common.cpp',
                              'src/stc_embed_c.cpp',
