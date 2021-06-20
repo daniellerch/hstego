@@ -101,6 +101,7 @@ def jpeg_save(data, path, use_blocks=False):
 # {{{ encrypt()
 def encrypt(plain_text, password):
 
+    print("len 1:", len(plain_text))
     salt = get_random_bytes(AES.block_size)
 
     # use the Scrypt KDF to get a private key from the password
@@ -111,6 +112,10 @@ def encrypt(plain_text, password):
     cipher_text = cipher.encrypt(pad(plain_text, AES.block_size))
     enc = salt+cipher.iv+cipher_text
 
+    #print("len cipher_text:", len(cipher_text))
+    #print("len salt:", len(salt))
+    #print("len iv:", len(cipher.iv))
+    print("len 2:", len(enc))
     return enc
 # }}}
 
@@ -158,15 +163,18 @@ def jpg_channel_capacity(jpg, channel):
     """ channel capacity in bytes """
     nz_coeff = np.count_nonzero(jpg["coef_arrays"][channel])
     capacity = int((nz_coeff*MAX_PAYLOAD)/8)
+    f = capacity // 16
+    capacity = (f-1)*16
     capacity -= 32 # data for header
-    f = capacity // 128
-    return f*128
+    if capacity<0:
+        capacity = 0
+    return capacity
 # }}}
 
 # {{{ jpg_accepted_channel_capacity()
 def jpg_accepted_channel_capacity(jpg, channel):
     """ accepted channel capacity in bytes """
-    tolerance = 1.2
+    tolerance = 1
     nz_coeff = np.count_nonzero(jpg["coef_arrays"][channel])
     capacity = int((nz_coeff*MAX_PAYLOAD*tolerance)/8)
     return capacity
@@ -331,7 +339,6 @@ def HILL_embed(input_img_path, msg_file_path, password, output_img_path):
         n_channels = 3
 
         l = len(data)//3
-        enc = encrypt_to_bits(data, password)
         msg_bits = [ encrypt_to_bits(data[:l], password), 
                      encrypt_to_bits(data[l:2*l], password), 
                      encrypt_to_bits(data[2*l:], password) ]
@@ -499,7 +506,7 @@ def J_UNIWARD_embed(input_img_path, msg_file_path, password, output_img_path):
 
         #print("real size:", len(msg_bits[0])/8, ", max size:", capacity)
         if len(msg_bits[0])//8 > capacity:
-            print("Message too long:", len(msg_bits[0])//8, "bytes >", capacity, "max bytes")
+            print(input_img_path, "- Message too long:", len(msg_bits[0])//8, "bytes >", capacity, "max bytes")
             sys.exit(-1)
 
         cost_matrix = [J_UNIWARD(jpg["coef_arrays"][0], jpg["quant_tables"][0], I)]
@@ -511,16 +518,22 @@ def J_UNIWARD_embed(input_img_path, msg_file_path, password, output_img_path):
         c1 = jpg_channel_capacity(jpg, 1)
         c2 = jpg_channel_capacity(jpg, 2)
 
-        enc = encrypt_to_bits(data, password)
+        print("real capcities:", c0, c1, c2)
+
+        a0 = jpg_accepted_channel_capacity(jpg, 0)
+        a1 = jpg_accepted_channel_capacity(jpg, 1)
+        a2 = jpg_accepted_channel_capacity(jpg, 2)
+        print("accp capcities:", a0, a1, a2)
+
         msg_bits = [ encrypt_to_bits(data[:c0], password), 
                      encrypt_to_bits(data[c0:c0+c1], password), 
                      encrypt_to_bits(data[c0+c1:], password) ]
 
         for channel in range(n_channels):
             capacity = jpg_accepted_channel_capacity(jpg, channel)
-            #print("real size:", len(msg_bits[channel])//8, ", max size:", capacity[channel])
+            print("real size:", len(msg_bits[channel])//8, ", max size:", capacity)
             if len(msg_bits[channel])//8 > capacity:
-                print("Message too long:", len(msg_bits[channel])//8, "bytes >", 
+                print(input_img_path, ", channel:", channel, ", Message too long:", len(msg_bits[channel])//8, "bytes >", 
                       capacity, "max bytes")
                 sys.exit(-1)
 
@@ -573,6 +586,8 @@ def J_UNIWARD_capacity(img_path):
     for i in range(jpg["image_components"]):
         capacity += jpg_channel_capacity(jpg, i)
     print("Capacity:", capacity, "bytes")
+    for i in range(jpg["image_components"]):
+        print(f"- channel {i}: {jpg_channel_capacity(jpg, i)} bytes")
     
 # }}} 
 
