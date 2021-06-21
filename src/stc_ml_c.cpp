@@ -19,30 +19,7 @@
 #include "stc_extract_c.h"
 #include "sse_mathfun.h"    // library with optimized functions obtained from http://gruntthepeon.free.fr/ssemath/
 
-// {{{ write_vector_to_file()
-template< class T > void write_vector_to_file( uint n, T *ptr, const char* file_name ) {
 
-    std::ofstream f( file_name );
-    for ( uint i = 0; i < n; i++ )
-        f << std::left << std::setw( 20 ) << i << std::left << std::setw( 20 ) << ptr[i] << std::endl;
-    f.close();
-}
-// }}}
-
-// {{{ write_matrix_to_file()
-// write column-ordered matrix into file
-template< class T > void write_matrix_to_file( uint rows, uint columns, T *ptr, const char* file_name ) {
-
-    std::ofstream f( file_name );
-    for ( uint i = 0; i < rows; i++ ) {
-        f << std::left << std::setw( 20 ) << i;
-        for ( uint j = 0; j < columns; j++ )
-            f << std::left << std::setw( 20 ) << ptr[j * rows + i];
-        f << std::endl;
-    }
-    f.close();
-}
-// }}}
 
 // {{{ align_*()
 // Templates to handle aligned version of new and delete operators.                                      
@@ -83,6 +60,7 @@ void randperm( uint n, uint seed, uint* perm ) {
         boost::uniform_int< > >( *generator, boost::uniform_int< >( 0, INT_MAX ) );
     */
 
+    srand(seed);
     // generate random permutation - this is used to shuffle cover pixels to randomize the effect of different neighboring pixels
     for ( uint i = 0; i < n; i++ )
         perm[i] = i;
@@ -302,7 +280,6 @@ void stc_embed_trial( uint n, float* cover_bit_prob0, u8* message, uint stc_cons
         }
         memcpy( stego, cover, n ); // initialize stego array by cover array
         // debugging
-        // write_vector_to_file<double>(n, cost, debugging_file);
         try {
             if ( num_msg_bits != 0 ) stc_embed( cover, n, message, num_msg_bits, (void*) cost, true, stego, stc_constraint_height );
             success = true;
@@ -499,7 +476,6 @@ float stc_ml1_embed( uint cover_length, int* cover, short* direction, float* cos
         }
         memcpy( stego1, cover1, cover_length ); // initialize stego array by cover array
         // debugging
-        // write_vector_to_file<double>(n, cost, debugging_file);
         try {
             if ( num_msg_bits[0] != 0 ) stc_embed( cover1, cover_length, message, num_msg_bits[0], (void*) cost1, true, stego1,
                     stc_constraint_height );
@@ -609,7 +585,6 @@ float stc_ml2_embed( uint cover_length, float* costs, int* stego_values, uint me
     std::fill_n( c, n, 0 );
     for ( uint i = 0; i < 4 * cover_length; i++ )
         c[n * (i % 4) + i / 4] = costs[i];
-    // write_matrix_to_file<float>(n, 4, c, "cost_ml2.txt");
     for ( uint i = 0; i < n; i++ ) { // normalize such that minimal element is 0 - this helps numerical stability
         float f_min = F_INF;
         for ( uint j = 0; j < 4; j++ )
@@ -745,7 +720,6 @@ float stc_ml3_embed( uint cover_length, float* costs, int* stego_values, uint me
     std::fill_n( c, n, 0 );
     for ( uint i = 0; i < 8 * cover_length; i++ )
         c[n * (i % 8) + i / 8] = costs[i]; // copy and transpose data for better reading via SSE instructions
-    // write_matrix_to_file<float>(n, 8, c, "cost_ml3.txt");
     for ( uint i = 0; i < n; i++ ) { // normalize such that minimal element is 0 - this helps numerical stability
         float f_min = F_INF;
         for ( uint j = 0; j < 8; j++ )
