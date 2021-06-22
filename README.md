@@ -63,12 +63,13 @@ Example using bitmap images:
 
 ```python
 import hstegolib
+hill = hstegolib.HILL()
 
 # Hide a message
-hstegolib.HILL_embed("cover.png", "secret.txt", "MyP4ssw0rd101", "stego.png")
+hill.embed("cover.png", "secret.txt", "MyP4ssw0rd101", "stego.png")
 
 # Extract the message
-hstegolib.HILL_extract("stego.png", "MyP4ssw0rd101", "content.txt")
+hill.extract("stego.png", "MyP4ssw0rd101", "content.txt")
 ```
 
 
@@ -76,12 +77,13 @@ Example using JPEG images:
 
 ```python
 import hstegolib
+juniw = hstegolib.J_UNIWARD()
 
 # Hide a message
-hstegolib.J_UNIWARD_embed("cover.jpg", "secret.txt", "MyP4ssw0rd101", "stego.jpg")
+juniw.embed("cover.jpg", "secret.txt", "MyP4ssw0rd101", "stego.jpg")
 
 # Extract the message
-hstegolib.J_UNIWARD_extract("stego.png", "MyP4ssw0rd101", "content.txt")
+juniw.extract("stego.png", "MyP4ssw0rd101", "content.txt")
 ```
 
 

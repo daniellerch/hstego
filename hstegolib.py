@@ -298,248 +298,236 @@ class Stego:
 
     # }}}
 
+class HILL:
+    # {{{ 
+    def cost_fn(self, I):                                                                
+        HF1 = np.array([                                                             
+            [-1, 2, -1],                                                             
+            [ 2,-4,  2],                                                             
+            [-1, 2, -1]                                                              
+        ])                                                                           
+        H2 = np.ones((3, 3)).astype(np.float)/3**2                                   
+        HW = np.ones((15, 15)).astype(np.float)/15**2                                
+                                                                                     
+        R1 = scipy.signal.convolve2d(I, HF1, mode='same', boundary='symm')
+        W1 = scipy.signal.convolve2d(np.abs(R1), H2, mode='same', boundary='symm')
+        rho=1./(W1+10**(-10))
+        cost = scipy.signal.convolve2d(rho, HW, mode='same', boundary='symm')
+
+        cost[np.isnan(cost)] = INF
+        cost[cost>INF] = INF
+
+        return cost     
 
 
-# {{{ HILL()
-def HILL(I):                                                                
-    HF1 = np.array([                                                             
-        [-1, 2, -1],                                                             
-        [ 2,-4,  2],                                                             
-        [-1, 2, -1]                                                              
-    ])                                                                           
-    H2 = np.ones((3, 3)).astype(np.float)/3**2                                   
-    HW = np.ones((15, 15)).astype(np.float)/15**2                                
-                                                                                 
-    R1 = scipy.signal.convolve2d(I, HF1, mode='same', boundary='symm')
-    W1 = scipy.signal.convolve2d(np.abs(R1), H2, mode='same', boundary='symm')
-    rho=1./(W1+10**(-10))
-    cost = scipy.signal.convolve2d(rho, HW, mode='same', boundary='symm')
+    def embed(self, input_img_path, msg_file_path, password, output_img_path):
 
-    cost[np.isnan(cost)] = INF
-    cost[cost>INF] = INF
+        with open(msg_file_path, 'rb') as f:
+            data = f.read()
 
-    return cost     
-# }}}
+        I = imageio.imread(input_img_path)
+        
+        n_channels = 3
+        if len(I.shape) == 2:
+            n_channels = 1
+            I = I[..., np.newaxis]
 
-# {{{ HILL_embed()
-def HILL_embed(input_img_path, msg_file_path, password, output_img_path):
+        cipher = Cipher(password)
+        message = cipher.encrypt(msg_file_path)
 
-    with open(msg_file_path, 'rb') as f:
-        data = f.read()
+        capacity = spatial_capacity(I)
+        if len(message) > capacity:
+            print("ERROR, message too long:", len(message), ">", capacity)
+            sys.exit(0)
 
-    I = imageio.imread(input_img_path)
-    
-    n_channels = 3
-    if len(I.shape) == 2:
-        n_channels = 1
-        I = I[..., np.newaxis]
+        stego = Stego()
 
-    cipher = Cipher(password)
-    message = cipher.encrypt(msg_file_path)
+        if n_channels == 1:
+            msg_bits = [ message ] 
+        else:
+            l = len(data)//3
+            msg_bits = [ message[:l], message[l:2*l], message[2*l:] ]
 
-    """ 
-    capacity = 0
-    if len(message) > capacity:
-        print("ERROR, message too long:", len(message), ">", capacity)
-        sys.exit(0)
-    """
-
-    stego = Stego()
-
-    if n_channels == 1:
-        msg_bits = [ message ] 
-    else:
-        l = len(data)//3
-        msg_bits = [ message[:l], message[l:2*l], message[2*l:] ]
-
-    for c in range(n_channels):
-        I[:,:,c] = stego.hide(msg_bits[c], I[:,:,c], HILL(I[:,:,c]))
+        for c in range(n_channels):
+            I[:,:,c] = stego.hide(msg_bits[c], I[:,:,c], self.cost_fn(I[:,:,c]))
 
 
-    imageio.imwrite(output_img_path, I)
-# }}}   
-
-# {{{ HILL_extract()
-def HILL_extract(stego_img_path, password, output_msg_path):
-
-    I = imageio.imread(stego_img_path)
-   
-    n_channels = 3
-    if len(I.shape) == 2:
-        n_channels = 1
-        I = I[..., np.newaxis]
-
-    cipher = Cipher(password)
-    stego = Stego()
-
-    ciphertext = []
-    for c in range(n_channels):
-        ciphertext += stego.unhide(I[:,:,c])
-
-    plain = cipher.decrypt(bytes(ciphertext))
-    with open(output_msg_path, 'wb') as f:
-        f.write(plain)
-
-# }}}
+        imageio.imwrite(output_img_path, I)
 
 
+    def extract(self, stego_img_path, password, output_msg_path):
+
+        I = imageio.imread(stego_img_path)
+       
+        n_channels = 3
+        if len(I.shape) == 2:
+            n_channels = 1
+            I = I[..., np.newaxis]
+
+        cipher = Cipher(password)
+        stego = Stego()
+
+        ciphertext = []
+        for c in range(n_channels):
+            ciphertext += stego.unhide(I[:,:,c])
+
+        plain = cipher.decrypt(bytes(ciphertext))
+        with open(output_msg_path, 'wb') as f:
+            f.write(plain)
+
+    # }}}
+
+class J_UNIWARD:
+    # {{{
+
+    def dct2(self, a):
+        return scipy.fftpack.dct(scipy.fftpack.dct(
+                               a, axis=0, norm='ortho' ), axis=1, norm='ortho')
+        
+    def idct2(self, a):
+        return scipy.fftpack.idct(scipy.fftpack.idct( 
+                              a, axis=0 , norm='ortho'), axis=1 , norm='ortho')
+
+    def cost_fn(self, coef_arrays, quant_tables, spatial):
+
+        hpdf = np.array([
+            -0.0544158422,  0.3128715909, -0.6756307363,  0.5853546837,  
+             0.0158291053, -0.2840155430, -0.0004724846,  0.1287474266,  
+             0.0173693010, -0.0440882539, -0.0139810279,  0.0087460940,  
+             0.0048703530, -0.0003917404, -0.0006754494, -0.0001174768
+        ])        
+
+        sign = np.array([-1 if i%2 else 1 for i in range(len(hpdf))])
+        lpdf = hpdf[::-1] * sign
+
+        F = []
+        F.append(np.outer(lpdf.T, hpdf))
+        F.append(np.outer(hpdf.T, lpdf))
+        F.append(np.outer(hpdf.T, hpdf))
 
 
-# {{{ J_UNIWARD()
-def dct2(a):
-    return scipy.fftpack.dct(scipy.fftpack.dct( a, axis=0, norm='ortho' ), axis=1, norm='ortho')
-    
-def idct2(a):
-    return scipy.fftpack.idct(scipy.fftpack.idct( a, axis=0 , norm='ortho'), axis=1 , norm='ortho')
-
-def J_UNIWARD(coef_arrays, quant_tables, spatial):
-
-    hpdf = np.array([
-        -0.0544158422,  0.3128715909, -0.6756307363,  0.5853546837,  
-         0.0158291053, -0.2840155430, -0.0004724846,  0.1287474266,  
-         0.0173693010, -0.0440882539, -0.0139810279,  0.0087460940,  
-         0.0048703530, -0.0003917404, -0.0006754494, -0.0001174768
-    ])        
-
-    sign = np.array([-1 if i%2 else 1 for i in range(len(hpdf))])
-    lpdf = hpdf[::-1] * sign
-
-    F = []
-    F.append(np.outer(lpdf.T, hpdf))
-    F.append(np.outer(hpdf.T, lpdf))
-    F.append(np.outer(hpdf.T, hpdf))
-
-
-    # Pre-compute impact in spatial domain when a jpeg coefficient is changed by 1
-    spatial_impact = {}
-    for i in range(8):
-        for j in range(8):
-            test_coeffs = np.zeros((8, 8))
-            test_coeffs[i, j] = 1
-            spatial_impact[i, j] = idct2(test_coeffs) * quant_tables[i, j]
-
-    # Pre compute impact on wavelet coefficients when a jpeg coefficient is changed by 1
-    wavelet_impact = {}
-    for f_index in range(len(F)):
+        # Pre-compute impact in spatial domain when a jpeg coefficient is changed by 1
+        spatial_impact = {}
         for i in range(8):
             for j in range(8):
-                wavelet_impact[f_index, i, j] = scipy.signal.correlate2d(spatial_impact[i, j], F[f_index], mode='full', boundary='fill', fillvalue=0.) # XXX
+                test_coeffs = np.zeros((8, 8))
+                test_coeffs[i, j] = 1
+                spatial_impact[i, j] = self.idct2(test_coeffs) * quant_tables[i, j]
+
+        # Pre compute impact on wavelet coefficients when a jpeg coefficient is changed by 1
+        wavelet_impact = {}
+        for f_index in range(len(F)):
+            for i in range(8):
+                for j in range(8):
+                    wavelet_impact[f_index, i, j] = scipy.signal.correlate2d(spatial_impact[i, j], F[f_index], mode='full', boundary='fill', fillvalue=0.) # XXX
 
 
-    # Create reference cover wavelet coefficients (LH, HL, HH)
-    pad_size = 16 # XXX
-    spatial_padded = np.pad(spatial, (pad_size, pad_size), 'symmetric')
+        # Create reference cover wavelet coefficients (LH, HL, HH)
+        pad_size = 16 # XXX
+        spatial_padded = np.pad(spatial, (pad_size, pad_size), 'symmetric')
 
 
-    RC = []
-    for i in range(len(F)):
-        f = scipy.signal.correlate2d(spatial_padded, F[i], mode='same', boundary='fill')
-        RC.append(f)
+        RC = []
+        for i in range(len(F)):
+            f = scipy.signal.correlate2d(spatial_padded, F[i], mode='same', boundary='fill')
+            RC.append(f)
 
-    coeffs = coef_arrays
-    k, l = coeffs.shape
-    nzAC = np.count_nonzero(coef_arrays) - np.count_nonzero(coef_arrays[::8, ::8])
+        coeffs = coef_arrays
+        k, l = coeffs.shape
+        nzAC = np.count_nonzero(coef_arrays) - np.count_nonzero(coef_arrays[::8, ::8])
 
-    rho = np.zeros((k, l))
-    tempXi = [0.]*3
-    sgm = 2**(-6)
+        rho = np.zeros((k, l))
+        tempXi = [0.]*3
+        sgm = 2**(-6)
 
-    # Computation of costs
-    for row in range(k):
-        for col in range(l):
-            mod_row = row % 8
-            mod_col = col % 8
-            sub_rows = list(range(row-mod_row-6+pad_size-1, row-mod_row+16+pad_size))
-            sub_cols = list(range(col-mod_col-6+pad_size-1, col-mod_col+16+pad_size))
+        # Computation of costs
+        for row in range(k):
+            for col in range(l):
+                mod_row = row % 8
+                mod_col = col % 8
+                sub_rows = list(range(row-mod_row-6+pad_size-1, row-mod_row+16+pad_size))
+                sub_cols = list(range(col-mod_col-6+pad_size-1, col-mod_col+16+pad_size))
 
-            for f_index in range(3):
-                RC_sub = RC[f_index][sub_rows][:,sub_cols]
-                wav_cover_stego_diff = wavelet_impact[f_index, mod_row, mod_col]
-                tempXi[f_index] = abs(wav_cover_stego_diff) / (abs(RC_sub)+sgm)
+                for f_index in range(3):
+                    RC_sub = RC[f_index][sub_rows][:,sub_cols]
+                    wav_cover_stego_diff = wavelet_impact[f_index, mod_row, mod_col]
+                    tempXi[f_index] = abs(wav_cover_stego_diff) / (abs(RC_sub)+sgm)
 
-            rho_temp = tempXi[0] + tempXi[1] + tempXi[2]
-            rho[row, col] = np.sum(rho_temp)
-
-
-    rho[np.isnan(rho)] = INF
-    rho[rho>INF] = INF
-
-    return rho
-# }}}
-
-# {{{ J_UNIWARD_embed()
-def J_UNIWARD_embed(input_img_path, msg_file_path, password, output_img_path):
+                rho_temp = tempXi[0] + tempXi[1] + tempXi[2]
+                rho[row, col] = np.sum(rho_temp)
 
 
-    with open(msg_file_path, 'rb') as f:
-        data = f.read()
+        rho[np.isnan(rho)] = INF
+        rho[rho>INF] = INF
 
-    I = imageio.imread(input_img_path)
-    jpg = jpeg_load(input_img_path)
+        return rho
 
-    n_channels = 3
-    if len(I.shape) == 2:
-        n_channels = 1
-        I = I[..., np.newaxis]
+    def embed(self, input_img_path, msg_file_path, password, output_img_path):
 
-    cipher = Cipher(password)
-    message = cipher.encrypt(msg_file_path)
+        with open(msg_file_path, 'rb') as f:
+            data = f.read()
 
-    capacity = 0.0
-    for i in range(n_channels):
-        capacity += jpg_channel_capacity(jpg, i)
+        I = imageio.imread(input_img_path)
+        jpg = jpeg_load(input_img_path)
 
-    if len(message) > capacity:
-        print("ERROR, message too long:", len(message), ">", capacity)
-        sys.exit(0)
+        n_channels = 3
+        if len(I.shape) == 2:
+            n_channels = 1
+            I = I[..., np.newaxis]
+
+        cipher = Cipher(password)
+        message = cipher.encrypt(msg_file_path)
+
+        capacity = jpg_capacity(jpg)
+        if len(message) > capacity:
+            print("ERROR, message too long:", len(message), ">", capacity)
+            sys.exit(0)
 
 
+        stego = Stego()
 
-    stego = Stego()
+        if n_channels == 1:
+            msg_bits = [ message ] 
+        else:
+            l = len(data)//3
+            msg_bits = [ message[:l], message[l:2*l], message[2*l:] ]
 
-    if n_channels == 1:
-        msg_bits = [ message ] 
-    else:
-        l = len(data)//3
-        msg_bits = [ message[:l], message[l:2*l], message[2*l:] ]
+        for c in range(n_channels):
+            quant = jpg["quant_tables"][0]
+            if c > 2:
+                quant = jpg["quant_tables"][1]
 
-    for c in range(n_channels):
-        quant = jpg["quant_tables"][0]
-        if c > 2:
-            quant = jpg["quant_tables"][1]
+            cost = self.cost_fn(jpg["coef_arrays"][c], quant, I[:,:,c])
+            jpg["coef_arrays"][c] = stego.hide(msg_bits[c], jpg["coef_arrays"][c], 
+                                               cost, mx=1016, mn=-1016)
 
-        cost = J_UNIWARD(jpg["coef_arrays"][c], quant, I[:,:,c])
-        jpg["coef_arrays"][c] = stego.hide(msg_bits[c], jpg["coef_arrays"][c], 
-                                           cost, mx=1016, mn=-1016)
+        jpeg_save(jpg, output_img_path)
 
-    jpeg_save(jpg, output_img_path)
 
-# }}}   
+    def extract(self, stego_img_path, password, output_msg_path):
 
-# {{{ J_UNIWARD_extract()
-def J_UNIWARD_extract(stego_img_path, password, output_msg_path):
+        I = imageio.imread(stego_img_path)
+        jpg = jpeg_load(stego_img_path)
+       
+        n_channels = 3
+        if len(I.shape) == 2:
+            n_channels = 1
+            I = I[..., np.newaxis]
 
-    I = imageio.imread(stego_img_path)
-    jpg = jpeg_load(stego_img_path)
-   
-    n_channels = 3
-    if len(I.shape) == 2:
-        n_channels = 1
-        I = I[..., np.newaxis]
+        cipher = Cipher(password)
+        stego = Stego()
 
-    cipher = Cipher(password)
-    stego = Stego()
+        ciphertext = []
+        for c in range(n_channels):
+            ciphertext += stego.unhide(jpg["coef_arrays"][c])
 
-    ciphertext = []
-    for c in range(n_channels):
-        ciphertext += stego.unhide(jpg["coef_arrays"][c])
+        plain = cipher.decrypt(bytes(ciphertext))
 
-    plain = cipher.decrypt(bytes(ciphertext))
-
-    f = open(output_msg_path, 'wb')
-    f.write(plain)
-    f.close()
-# }}}
+        f = open(output_msg_path, 'wb')
+        f.write(plain)
+        f.close()
+        
+    # }}}
 
 
 

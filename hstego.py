@@ -63,11 +63,13 @@ if __name__ == "__main__":
         #try:
         if is_ext(output_img_path, SPATIAL_EXT):
 
-            hstegolib.HILL_embed(input_img_path, msg_file_path, password, output_img_path)
+            hill = hstegolib.HILL()
+            hill.embed(input_img_path, msg_file_path, password, output_img_path)
 
         elif is_ext(input_img_path, "jpg"):
 
-            hstegolib.J_UNIWARD_embed(input_img_path, msg_file_path, password, output_img_path)
+            juniw = hstegolib.J_UNIWARD()
+            juniw.embed(input_img_path, msg_file_path, password, output_img_path)
 
         else:
             print("File extension not supported")
@@ -93,11 +95,13 @@ if __name__ == "__main__":
         #try:
         if is_ext(stego_img_path, SPATIAL_EXT):
 
-            hstegolib.HILL_extract(stego_img_path, password, output_msg_path)
+            hill = hstegolib.HILL()
+            hill.extract(stego_img_path, password, output_msg_path)
 
         elif is_ext(stego_img_path, "jpg"):
 
-            hstegolib.J_UNIWARD_extract(stego_img_path, password, output_msg_path)
+            juniw = hstegolib.J_UNIWARD()
+            juniw.extract(stego_img_path, password, output_msg_path)
 
         else:
             print("File extension not supported")
