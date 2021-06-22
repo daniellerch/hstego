@@ -1,4 +1,5 @@
-# HStego
+## What is HStego?
+
 **HStego:** Hard to detect image steganography.
 
 HStego is a tool for hiding data in bitmap and JPEG images.
@@ -7,6 +8,14 @@ This tool uses some of the most advanced steganography methods known today, alon
 
 > **WARNING:** This tool is in a ALPHA stage. Use at your own risk. <br>
 > If you find any problem, please open a [issue](https://github.com/daniellerch/hstego/issues).
+
+
+
+- [Install](#install)
+- [Command line examples](#command-line-examples)
+- [Python examples](#python-examples)
+- [Technical details](technical-details)
+- [Acknowledgments](#acknowledgments)
 
 
 ## Install
@@ -86,6 +95,13 @@ juniw.extract("stego.png", "MyP4ssw0rd101", "content.txt")
 ```
 
 
+## Technical details:
+
+HStego can hide information in bitmap and JPEG images. For hiding data into
+bitmap images, HStego uses the HILL [1] cost function with Syndrome Trellis
+Codes. 
+
+
 ## Acknowledgments:
 
 HStego implements the J-UNIWARD method for JPEG images and the HILL method for bitmap images. These
@@ -95,6 +111,15 @@ methods are described in the following papers:
 - [Universal Distortion Function for Steganography in an Arbitrary Domain](https://doi.org/10.1186/1687-417X-2014-1) by Vojtěch Holub, Jessica Fridrich and Tomáš Denemark
 
 - [A New Cost Function for Spatial Image Steganography](https://doi.org/10.1109/ICIP.2014.7025854) by Bin Li, Ming Wang, Jiwu Huang and Xiaolong Li.
+
+
+The embedding is implemeted using Syndrome Trellis Codes:
+
+- [Minimizing Embedding Impact in Steganography using Trellis-Coded Quantization](https://doi.org/10.1117/12.838002) by Tomas Filler, Jan Judas and Jessica Fridrich.
+
+- [Minimizing Additive Distortion Functions With Non-Binary Embedding Operation in Steganography](https://doi.org/10.1109/WIFS.2010.5711444) by Tomas Filler and Jessica Fridrich.
+
+- [Minimizing Additive Distortion in Steganography using Syndrome-Trellis Codes](https://doi.org/10.1109/TIFS.2011.2134094) by Tomas Filler, Jan Judas and Jessica Fridrich.
 
 
 Part of the C/C++ code used by HStego comes from the [Digital Data Embedding Laboratory](http://dde.binghamton.edu/download/).
