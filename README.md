@@ -98,9 +98,20 @@ juniw.extract("stego.png", "MyP4ssw0rd101", "content.txt")
 
 ## Technical details:
 
-HStego can hide information in bitmap and JPEG images. For hiding data into
-bitmap images, HStego uses the HILL [1] cost function with Syndrome Trellis
-Codes. 
+HStego can hide information in bitmap and JPEG images. HStego gets the best 
+place for hiding the data in bitmap images using the [HILL](#acknowledgments) 
+cost function, and for hiding data into JPEG images using the function 
+[J-UNIWARD](#acknowledgments). The final embedding is done using 
+[Syndrome Trellis Codes](#acknowledgments). 
+
+Even using this advanced methods, powerful steganalysis tools based on 
+deep learning could detect the hidden information if we hide too much data.
+Therefore, HStego limits the maximum amount of information to 5% of the total 
+capacity. This 5% has been calculated using the 
+[Aletheia](https://github.com/daniellerch/aletheia) steganalysis tool and 
+this is the maximum that can be hidden without being reliably detected, under
+adverse conditions.
+
 
 
 ## Acknowledgments:
