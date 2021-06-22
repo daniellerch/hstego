@@ -303,7 +303,7 @@ def HILL_embed(input_img_path, msg_file_path, password, output_img_path):
         I = I[..., np.newaxis]
 
     cipher = Cipher(password)
-    message = cipher.encrypt(input_img_path)
+    message = cipher.encrypt(msg_file_path)
 
     stego = Stego()
 
@@ -314,8 +314,8 @@ def HILL_embed(input_img_path, msg_file_path, password, output_img_path):
         msg_bits = [ message[:l], message[l:2*l], message[2*l:] ]
 
     for c in range(n_channels):
-        height, width, _ = I.shape
-        I[:,:,c] = stego.hide(msg_bits[c], I[:,:,c], HILL(I[:,:,c])
+        I[:,:,c] = stego.hide(msg_bits[c], I[:,:,c], HILL(I[:,:,c]))
+
 
     imageio.imwrite(output_img_path, I)
 # }}}   
@@ -333,14 +333,13 @@ def HILL_extract(stego_img_path, password, output_msg_path):
     cipher = Cipher(password)
     stego = Stego()
 
-    plain = []
+    ciphertext = []
     for c in range(n_channels):
-        extracted = stego.unhide(I[:,:,c])
-        plain += cipher.decrypt(extracted)
+        ciphertext += stego.unhide(I[:,:,c])
 
-    with open(output_path, 'wb') as f:
-        f.write(bytes(plain))
-
+    plain = cipher.decrypt(bytes(ciphertext))
+    with open(output_msg_path, 'wb') as f:
+        f.write(plain)
 
 # }}}
 
