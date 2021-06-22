@@ -12,13 +12,13 @@ SPATIAL_EXT = ["png", "pgm", "tif"]
 
 def help():
     print("\nUsage:")
-    print("  ", sys.argv[0], "embed <input msg file> <input cover image> <output stego image> [password]")
-    print("  ", sys.argv[0], "extract <input stego image> <output msg file> [password]")
-    print("  ", sys.argv[0], "capacity <image>")
+    print("  hstego.py embed <msg file> <cover image> <output stego image> [password]")
+    print("  hstego.py extract <stego image> <output msg file> [password]")
+    print("  hstego.py capacity <image>")
 
     print("\nExample:")
-    print("  ", sys.argv[0], "embed input-secret.txt cover.png stego.png p4ssw0rd")
-    print("  ", sys.argv[0], "extract stego.png output-secret.txt p4ssw0rd")
+    print("  hstego.py embed input-secret.txt cover.png stego.png p4ssw0rd")
+    print("  hstego.py extract stego.png output-secret.txt p4ssw0rd")
     print("")
     sys.exit(0)
 

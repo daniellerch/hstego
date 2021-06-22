@@ -335,7 +335,11 @@ class HILL:
         cipher = Cipher(password)
         message = cipher.encrypt(msg_file_path)
 
-        capacity = spatial_capacity(I)
+        # real capacity, without headers
+        m = 1
+        for i in I.shape:
+            m *= i
+        capacity = int((m*MAX_PAYLOAD)/8)
         if len(message) > capacity:
             print("ERROR, message too long:", len(message), ">", capacity)
             sys.exit(0)
@@ -478,7 +482,12 @@ class J_UNIWARD:
         cipher = Cipher(password)
         message = cipher.encrypt(msg_file_path)
 
-        capacity = jpg_capacity(jpg)
+        # Real capacity, without headers
+        capacity = 0
+        for channel in range(len(jpg["coef_arrays"])):
+            nz_coeff = np.count_nonzero(jpg["coef_arrays"][channel])
+            capacity += int((nz_coeff*MAX_PAYLOAD)/8)
+
         if len(message) > capacity:
             print("ERROR, message too long:", len(message), ">", capacity)
             sys.exit(0)
