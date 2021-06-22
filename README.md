@@ -1,8 +1,7 @@
 ## What is HStego?
 
-**HStego:** Hard to detect image steganography.
 
-HStego is a tool for hiding data in bitmap and JPEG images.
+**HStego** is a tool for hiding data in bitmap and JPEG images.
 This tool uses some of the most advanced steganography methods known today, along with an upper limit on the amount of data that can be hidden so that it cannot be reliably detected by modern steganography tools.
 
 
@@ -11,11 +10,13 @@ This tool uses some of the most advanced steganography methods known today, alon
 
 
 
+## Documentation:
 - [Install](#install)
 - [Command line examples](#command-line-examples)
 - [Python examples](#python-examples)
 - [Technical details](technical-details)
 - [Acknowledgments](#acknowledgments)
+<br>
 
 
 ## Install
