@@ -165,7 +165,7 @@ def jpg_channel_capacity(jpg, channel):
     capacity = int((nz_coeff*MAX_PAYLOAD)/8)
     f = capacity // 16
     capacity = (f-1)*16
-    capacity -= 32 # data for header
+    capacity -= 16+16+4 # data for header
     if capacity<0:
         capacity = 0
     return capacity
@@ -518,6 +518,12 @@ def J_UNIWARD_embed(input_img_path, msg_file_path, password, output_img_path):
         c1 = jpg_channel_capacity(jpg, 1)
         c2 = jpg_channel_capacity(jpg, 2)
 
+        print("data len:", len(data))
+
+        if len(data) > c0+c1+c2:
+            print("ERROR: Message too long")
+            sys.exit(-1)
+
         print("real capcities:", c0, c1, c2)
 
         a0 = jpg_accepted_channel_capacity(jpg, 0)
@@ -525,9 +531,22 @@ def J_UNIWARD_embed(input_img_path, msg_file_path, password, output_img_path):
         a2 = jpg_accepted_channel_capacity(jpg, 2)
         print("accp capcities:", a0, a1, a2)
 
-        msg_bits = [ encrypt_to_bits(data[:c0], password), 
-                     encrypt_to_bits(data[c0:c0+c1], password), 
-                     encrypt_to_bits(data[c0+c1:], password) ]
+        msg_bits = []
+        if c0>0:
+            msg_bits.append( encrypt_to_bits(data[:c0], password) )
+        else:
+            msg_bits.append( [] )
+
+        if c1>0:
+            msg_bits.append( encrypt_to_bits(data[c0:c0+c1], password) )
+        else:
+            msg_bits.append( [] )
+
+        if c2>0:
+            msg_bits.append( encrypt_to_bits(data[c0+c1:], password) )
+        else:
+            msg_bits.append( [] )
+
 
         for channel in range(n_channels):
             capacity = jpg_accepted_channel_capacity(jpg, channel)
@@ -571,6 +590,9 @@ def J_UNIWARD_extract(stego_img_path, password, output_msg_path):
     cleartext = []
     
     for channel in range(n_channels):
+        if jpg_channel_capacity(jpg, channel) == 0:
+            continue
+        print(channel, jpg_channel_capacity(jpg, channel))
         enc = unhide(jpg["coef_arrays"][channel])
         cleartext += decrypt(enc, password)
 
@@ -623,8 +645,8 @@ def stc_test(n_iter, width=512, height=512):
                     costs[3*idx+2] = random.randint(0, 100)
                 idx += 1
 
-        payload = random.choice([0.1, 0.15, 0.2, 0.25, 0.30, 0.35, 0.4, 0.45, 0.5])
-        #payload = random.choice([0.10])
+        #payload = random.choice([0.1, 0.15, 0.2, 0.25, 0.30, 0.35, 0.4, 0.45, 0.5])
+        payload = random.choice([0.40])
         m = int(width*height*payload)
         message = (c_ubyte*m)()
         for i in range(m):

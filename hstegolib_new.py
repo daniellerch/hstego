@@ -35,6 +35,69 @@ if not stc_candidates:
 stc = CDLL(stc_candidates[0])
 
 
+# {{{ jpeg_load()
+def jpeg_load(path, use_blocks=False):
+
+    if not os.path.isfile(path):
+        raise FileNotFoundError(errno.ENOENT, 
+                os.strerror(errno.ENOENT), path)
+
+    jpeg.write_file.argtypes = c_char_p,
+    jpeg.read_file.restype = py_object
+    r = jpeg.read_file(path.encode())
+
+    r["quant_tables"] = np.array(r["quant_tables"])
+
+    for i in range(len(r["ac_huff_tables"])):
+        r["ac_huff_tables"][i]["counts"] = np.array(r["ac_huff_tables"][i]["counts"])
+        r["ac_huff_tables"][i]["symbols"] = np.array(r["ac_huff_tables"][i]["symbols"])
+
+    for i in range(len(r["dc_huff_tables"])):
+        r["dc_huff_tables"][i]["counts"] = np.array(r["dc_huff_tables"][i]["counts"])
+        r["dc_huff_tables"][i]["symbols"] = np.array(r["dc_huff_tables"][i]["symbols"])
+
+    if not use_blocks:
+        chn = len(r["coef_arrays"])
+        for c in range(chn):
+            r["coef_arrays"][c] = np.array(r["coef_arrays"][c])
+            h = r["coef_arrays"][c].shape[0]*8
+            w = r["coef_arrays"][c].shape[1]*8
+            r["coef_arrays"][c] = np.moveaxis(r["coef_arrays"][c], [0,1,2,3], [0,2,1,3])
+            r["coef_arrays"][c] = r["coef_arrays"][c].reshape((h, w))
+
+    return r
+# }}}
+
+# {{{ jpeg_save()
+def jpeg_save(data, path, use_blocks=False):
+
+    jpeg.write_file.argtypes = py_object,c_char_p
+
+    r = copy.deepcopy(data)
+    r["quant_tables"] = r["quant_tables"].tolist()
+
+    for i in range(len(r["ac_huff_tables"])):
+        r["ac_huff_tables"][i]["counts"] = r["ac_huff_tables"][i]["counts"].tolist()
+        r["ac_huff_tables"][i]["symbols"] = r["ac_huff_tables"][i]["symbols"].tolist()
+
+    for i in range(len(r["dc_huff_tables"])):
+        r["dc_huff_tables"][i]["counts"] = r["dc_huff_tables"][i]["counts"].tolist()
+        r["dc_huff_tables"][i]["symbols"] = r["dc_huff_tables"][i]["symbols"].tolist()
+
+    if not use_blocks:
+        chn = len(r["coef_arrays"])
+        for c in range(chn):
+            h = r["coef_arrays"][c].shape[0]
+            w = r["coef_arrays"][c].shape[1]
+            r["coef_arrays"][c] = r["coef_arrays"][c].reshape((h//8, 8, w//8, 8))
+            r["coef_arrays"][c] = np.moveaxis(r["coef_arrays"][c], [0,1,2,3], [0,2,1,3])
+            r["coef_arrays"][c] = r["coef_arrays"][c].tolist()
+
+    jpeg.write_file(r, path.encode())
+# }}}
+
+
+
 
 class Cipher:
     # {{{
@@ -80,13 +143,11 @@ class Cipher:
         decrypted = cipher.decrypt(ciphertext)
         self.decrypted = unpad(decrypted, AES.block_size)
 
-    def decrypt(self, bytes_array, output_path):
+    def decrypt(self, bytes_array):
         """ decrypt """
         self.ciphertext = bytes_array
         self.aes_decrypt()
-
-        with open(output_path, 'wb') as f:
-            f.write(bytes(self.decrypted))
+        return self.decrypted
     # }}}
 
 class Stego:
@@ -229,6 +290,79 @@ def HILL(I):
     return cost     
 # }}}
 
+# {{{ HILL_embed()
+def HILL_embed(input_img_path, msg_file_path, password, output_img_path):
+
+    with open(msg_file_path, 'rb') as f:
+        data = f.read()
+
+    I = imageio.imread(input_img_path)
+    
+    n_channels = 3
+    if len(I.shape) == 2:
+        n_channels = 1
+        I = I[..., np.newaxis]
+
+    cipher = Cipher(password)
+    message = cipher.encrypt(input_img_path)
+
+    stego = Stego()
+
+    if n_channels == 1:
+        msg_bits = [ message ] 
+    else:
+        l = len(data)//3
+        msg_bits = [ message[:l], message[l:2*l], message[2*l:] ]
+
+    for c in range(n_channels):
+        height, width, _ = I.shape
+        I[:,:,c] = stego.hide(msg_bits[c], I[:,:,c], HILL(I[:,:,c])
+
+    imageio.imwrite(output_img_path, I)
+# }}}   
+
+# {{{ HILL_extract()
+def HILL_extract(stego_img_path, password, output_msg_path):
+
+    I = imageio.imread(stego_img_path)
+   
+    n_channels = 3
+    if len(I.shape) == 2:
+        n_channels = 1
+        I = I[..., np.newaxis]
+
+    cipher = Cipher(password)
+    stego = Stego()
+
+    plain = []
+    for c in range(n_channels):
+        extracted = stego.unhide(I[:,:,c])
+        plain += cipher.decrypt(extracted)
+
+    with open(output_path, 'wb') as f:
+        f.write(bytes(plain))
+
+
+# }}}
+
+# {{{ HILL_capacity()
+def HILL_capacity(img_path):
+    m = 1
+    I = imageio.imread(img_path)
+    for i in I.shape:
+        m *= i
+
+    capacity = int((m*MAX_PAYLOAD)/8)
+    capacity -= 8*3 # data for header
+    f = capacity // 128
+    capacity = f*128 # neares 128 multiple
+    print("Capacity:", capacity, "bytes")
+# }}} 
+
+
+
+
+
 # {{{ J_UNIWARD()
 def dct2(a):
     return scipy.fftpack.dct(scipy.fftpack.dct( a, axis=0, norm='ortho' ), axis=1, norm='ortho')
@@ -310,44 +444,6 @@ def J_UNIWARD(coef_arrays, quant_tables, spatial):
 
     return rho
 # }}}
-
-
-
-
-
-cover = "testing/cover_color.png"
-path = "testing/input-secret-small.txt"
-password = "p4ssw0rd"
-
-
-with open(path, 'rb') as f:
-    print("real len:", len(f.read()))
-
-# Hide
-C = imageio.imread(cover)
-
-cipher = Cipher(password)
-message = cipher.encrypt(path)
-print("enc len:", len(message))
-
-
-stego = Stego()
-S = np.zeros(C.shape)
-S[:,:,0] = stego.hide(message, C[:,:,0], HILL(C[:,:,0])) 
-
-
-
-
-# Unhide
-print("Unhide!")
-C2 = np.zeros(S.shape)
-extracted = stego.unhide(S[:,:,0])
-print("Extracted:", extracted)
-cipher.decrypt(extracted, "output.txt")
-
-
-
-
 
 
 
