@@ -3,6 +3,7 @@
 import os
 import sys
 import glob
+import copy
 import struct
 import base64
 import imageio
@@ -94,6 +95,30 @@ def jpeg_save(data, path, use_blocks=False):
 
     jpeg.write_file(r, path.encode())
 # }}}
+
+# {{{ jpg_channel_capacity()
+def jpg_channel_capacity(jpg, channel):
+    """ channel capacity in bytes """
+    nz_coeff = np.count_nonzero(jpg["coef_arrays"][channel])
+    capacity = int((nz_coeff*MAX_PAYLOAD)/8)
+    f = capacity // 16
+    capacity = (f-1)*16
+    capacity -= 16+16+4 # data for header
+    if capacity<0:
+        capacity = 0
+    return capacity
+# }}}
+
+# {{{ jpg_accepted_channel_capacity()
+def jpg_accepted_channel_capacity(jpg, channel):
+    """ accepted channel capacity in bytes """
+    tolerance = 1
+    nz_coeff = np.count_nonzero(jpg["coef_arrays"][channel])
+    capacity = int((nz_coeff*MAX_PAYLOAD*tolerance)/8)
+    return capacity
+# }}}
+
+
 
 
 
@@ -443,7 +468,85 @@ def J_UNIWARD(coef_arrays, quant_tables, spatial):
     return rho
 # }}}
 
+# {{{ J_UNIWARD_embed()
+def J_UNIWARD_embed(input_img_path, msg_file_path, password, output_img_path):
 
+
+    with open(msg_file_path, 'rb') as f:
+        data = f.read()
+
+    I = imageio.imread(input_img_path)
+    jpg = jpeg_load(input_img_path)
+
+    n_channels = 3
+    if len(I.shape) == 2:
+        n_channels = 1
+        I = I[..., np.newaxis]
+
+    cipher = Cipher(password)
+    message = cipher.encrypt(msg_file_path)
+
+    stego = Stego()
+
+    if n_channels == 1:
+        msg_bits = [ message ] 
+    else:
+        l = len(data)//3
+        msg_bits = [ message[:l], message[l:2*l], message[2*l:] ]
+
+    for c in range(n_channels):
+        nz_coeff = np.count_nonzero(jpg["coef_arrays"][c])
+        rcap = jpg_channel_capacity(jpg, 0)
+        acap = jpg_accepted_channel_capacity(jpg, 0)
+
+        quant = jpg["quant_tables"][0]
+        if c > 2:
+            quant = jpg["quant_tables"][1]
+
+        cost = J_UNIWARD(jpg["coef_arrays"][c], quant, I[:,:,c])
+        jpg["coef_arrays"][c] = stego.hide(msg_bits[c], jpg["coef_arrays"][c], 
+                                           cost, mx=1016, mn=-1016)
+
+    jpeg_save(jpg, output_img_path)
+
+# }}}   
+
+# {{{ J_UNIWARD_extract()
+def J_UNIWARD_extract(stego_img_path, password, output_msg_path):
+
+    I = imageio.imread(stego_img_path)
+    jpg = jpeg_load(stego_img_path)
+   
+    n_channels = 3
+    if len(I.shape) == 2:
+        n_channels = 1
+        I = I[..., np.newaxis]
+
+    cipher = Cipher(password)
+    stego = Stego()
+
+    ciphertext = []
+    for c in range(n_channels):
+        ciphertext += stego.unhide(jpg["coef_arrays"][c])
+
+    plain = cipher.decrypt(bytes(ciphertext))
+
+    f = open(output_msg_path, 'wb')
+    f.write(plain)
+    f.close()
+# }}}
+
+# {{{ J_UNIWARD_capacity()
+def J_UNIWARD_capacity(img_path):
+    jpg = jpeg_load(img_path)
+    capacity = 0
+    for i in range(jpg["image_components"]):
+        capacity += jpg_channel_capacity(jpg, i)
+    print("Capacity:", capacity, "bytes")
+    for i in range(jpg["image_components"]):
+        print(f"- channel {i}: {jpg_channel_capacity(jpg, i)} bytes")
+    
+# }}} 
 
 
 
