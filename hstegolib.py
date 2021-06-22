@@ -96,30 +96,37 @@ def jpeg_save(data, path, use_blocks=False):
     jpeg.write_file(r, path.encode())
 # }}}
 
-# {{{ jpg_channel_capacity()
-def jpg_channel_capacity(jpg, channel):
+# {{{ jpg_capacity()
+def jpg_capacity(jpg):
     """ channel capacity in bytes """
-    nz_coeff = np.count_nonzero(jpg["coef_arrays"][channel])
-    capacity = int((nz_coeff*MAX_PAYLOAD)/8)
+    total_capacity = 0
+    for channel in range(len(jpg["coef_arrays"])):
+        nz_coeff = np.count_nonzero(jpg["coef_arrays"][channel])
+        capacity = int((nz_coeff*MAX_PAYLOAD)/8)
+        f = capacity // 16
+        capacity = (f-1)*16
+        capacity -= 16+16+4 # data for header
+        if capacity<0:
+            capacity = 0
+        total_capacity += capacity
+    return total_capacity
+# }}}
+
+# {{{ spatial_capacity()
+def spatial_capacity(I):
+    m = 1
+    for i in I.shape:
+        m *= i
+
+    capacity = int((m*MAX_PAYLOAD)/8)
     f = capacity // 16
     capacity = (f-1)*16
     capacity -= 16+16+4 # data for header
     if capacity<0:
         capacity = 0
+
     return capacity
-# }}}
-
-# {{{ jpg_accepted_channel_capacity()
-def jpg_accepted_channel_capacity(jpg, channel):
-    """ accepted channel capacity in bytes """
-    tolerance = 1
-    nz_coeff = np.count_nonzero(jpg["coef_arrays"][channel])
-    capacity = int((nz_coeff*MAX_PAYLOAD*tolerance)/8)
-    return capacity
-# }}}
-
-
-
+# }}} 
 
 
 
@@ -330,6 +337,13 @@ def HILL_embed(input_img_path, msg_file_path, password, output_img_path):
     cipher = Cipher(password)
     message = cipher.encrypt(msg_file_path)
 
+    """ 
+    capacity = 0
+    if len(message) > capacity:
+        print("ERROR, message too long:", len(message), ">", capacity)
+        sys.exit(0)
+    """
+
     stego = Stego()
 
     if n_channels == 1:
@@ -367,21 +381,6 @@ def HILL_extract(stego_img_path, password, output_msg_path):
         f.write(plain)
 
 # }}}
-
-# {{{ HILL_capacity()
-def HILL_capacity(img_path):
-    m = 1
-    I = imageio.imread(img_path)
-    for i in I.shape:
-        m *= i
-
-    capacity = int((m*MAX_PAYLOAD)/8)
-    capacity -= 8*3 # data for header
-    f = capacity // 128
-    capacity = f*128 # neares 128 multiple
-    print("Capacity:", capacity, "bytes")
-# }}} 
-
 
 
 
@@ -486,6 +485,16 @@ def J_UNIWARD_embed(input_img_path, msg_file_path, password, output_img_path):
     cipher = Cipher(password)
     message = cipher.encrypt(msg_file_path)
 
+    capacity = 0.0
+    for i in range(n_channels):
+        capacity += jpg_channel_capacity(jpg, i)
+
+    if len(message) > capacity:
+        print("ERROR, message too long:", len(message), ">", capacity)
+        sys.exit(0)
+
+
+
     stego = Stego()
 
     if n_channels == 1:
@@ -495,10 +504,6 @@ def J_UNIWARD_embed(input_img_path, msg_file_path, password, output_img_path):
         msg_bits = [ message[:l], message[l:2*l], message[2*l:] ]
 
     for c in range(n_channels):
-        nz_coeff = np.count_nonzero(jpg["coef_arrays"][c])
-        rcap = jpg_channel_capacity(jpg, 0)
-        acap = jpg_accepted_channel_capacity(jpg, 0)
-
         quant = jpg["quant_tables"][0]
         if c > 2:
             quant = jpg["quant_tables"][1]
@@ -536,17 +541,6 @@ def J_UNIWARD_extract(stego_img_path, password, output_msg_path):
     f.close()
 # }}}
 
-# {{{ J_UNIWARD_capacity()
-def J_UNIWARD_capacity(img_path):
-    jpg = jpeg_load(img_path)
-    capacity = 0
-    for i in range(jpg["image_components"]):
-        capacity += jpg_channel_capacity(jpg, i)
-    print("Capacity:", capacity, "bytes")
-    for i in range(jpg["image_components"]):
-        print(f"- channel {i}: {jpg_channel_capacity(jpg, i)} bytes")
-    
-# }}} 
 
 
 

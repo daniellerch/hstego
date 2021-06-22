@@ -3,6 +3,7 @@
 import os
 import sys
 import getpass
+import imageio
 import hstegolib
 
 SPATIAL_EXT = ["png", "pgm", "tif"]
@@ -108,9 +109,11 @@ if __name__ == "__main__":
     elif sys.argv[1] == "capacity":
         img_path = sys.argv[2]
         if is_ext(img_path, SPATIAL_EXT):
-            hstegolib.HILL_capacity(img_path)
+            I = imageio.imread(img_path)
+            print("Capacity:", hstegolib.spatial_capacity(I), "bytes")
         elif is_ext(img_path, "jpg"):
-            hstegolib.J_UNIWARD_capacity(img_path)
+            jpg = hstegolib.jpeg_load(img_path)
+            print("Capacity:", hstegolib.jpg_capacity(jpg), "bytes")
         else:
             print("File extension not supported")
  
