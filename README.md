@@ -14,7 +14,7 @@ This tool uses some of the most advanced steganography methods known today, alon
 - [Install](#install)
 - [Command line examples](#command-line-examples)
 - [Python examples](#python-examples)
-- [Technical details](technical-details)
+- [Technical details](#technical-details)
 - [Acknowledgments](#acknowledgments)
 <br>
 
