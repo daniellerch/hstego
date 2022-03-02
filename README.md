@@ -32,7 +32,11 @@ Uninstall with:
 pip3 uninstall hstego
 ```
 
+Your operating system may need to install some libraries. In case of Debian based systems you can use the following commands:
 
+```base
+sudo apt-get install build-essential python-dev libjpeg-dev
+```
 
 ## Command line examples:
 
