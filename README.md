@@ -24,7 +24,7 @@ This tool uses some of the most advanced steganography methods known today, alon
 You can install HStego with the following commands:
 ```bash 
 pip3 install imageio scipy pycryptodome
-pip3 install git+https://github.com/daniellerch/hstego
+pip3 install git+https://github.com/daniellerch/hstego.git@v0.1
 ```
 
 Uninstall with:
