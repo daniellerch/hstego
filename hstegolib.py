@@ -22,15 +22,21 @@ MAX_PAYLOAD=0.05
 INF = 2**31-1
 
 
-jpg_candidates = glob.glob(os.path.join(os.path.dirname(__file__), 'hstego_jpeg_toolbox_extension.*.so'))
+base = os.path.dirname(__file__)
+
+# running in a pyinstaller bundle
+if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
+    base = os.path.join(sys._MEIPASS, 'dist-packages') 
+
+jpg_candidates = glob.glob(os.path.join(base, 'hstego_jpeg_toolbox_extension.*.so'))
 if not jpg_candidates:
-    print("JPEG Toolbox library not found:", os.path.dirname(__file__))
+    print("JPEG Toolbox library not found:", base)
     sys.exit(0)
 jpeg = CDLL(jpg_candidates[0])
 
-stc_candidates = glob.glob(os.path.join(os.path.dirname(__file__), 'hstego_stc_extension.*.so'))
+stc_candidates = glob.glob(os.path.join(base, 'hstego_stc_extension.*.so'))
 if not stc_candidates:
-    print("STC library not found:", os.path.dirname(__file__))
+    print("STC library not found:", base)
     sys.exit(0)
 stc = CDLL(stc_candidates[0])
 
