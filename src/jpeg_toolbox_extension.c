@@ -143,8 +143,8 @@ PyObject* read_file(const char *path)
    /* save contents of markers */
    jpeg_save_markers(&cinfo, JPEG_COM, 0xFFFF);
 
-   /* read header and coefficients */
-   jpeg_read_header(&cinfo, TRUE);
+  /* read header and coefficients */
+  jpeg_read_header(&cinfo, TRUE);
 
   /* Set out_color_components */
    switch (cinfo.out_color_space) {
@@ -169,6 +169,7 @@ PyObject* read_file(const char *path)
          return result;
    }
 
+
    // {{{ Header info 
    result = dict_add_int(result, "image_width", cinfo.image_width);
    result = dict_add_int(result, "image_height", cinfo.image_height);
@@ -177,6 +178,9 @@ PyObject* read_file(const char *path)
    result = dict_add_int(result, "jpeg_color_space", cinfo.jpeg_color_space);
    result = dict_add_int(result, "jpeg_components", cinfo.num_components);
    result = dict_add_int(result, "progressive_mode", cinfo.progressive_mode);
+   result = dict_add_int(result, "X_density", cinfo.X_density);
+   result = dict_add_int(result, "Y_density", cinfo.Y_density);
+   result = dict_add_int(result, "density_unit", cinfo.density_unit);
    // }}}
 
    // {{{ Components info
@@ -435,11 +439,18 @@ void write_file(PyObject *data, const char *path)
    cinfo.input_components = dict_get_int(data, "image_components");
    cinfo.in_color_space = dict_get_int(data, "image_color_space");
 
+
    /* write the output file */
    jpeg_stdio_dest(&cinfo, f);
 
    /* set default parameters */
    jpeg_set_defaults(&cinfo);
+
+   /* set original density configuration..
+      It must be set after jpeg_set_defaults() */
+   cinfo.X_density = dict_get_int(data, "X_density");
+   cinfo.Y_density = dict_get_int(data, "Y_density");
+   cinfo.density_unit = dict_get_int(data, "density_unit");
 
    //cinfo.optimize_coding = dict_get_int(data, "optimize_coding"); XXX
    cinfo.num_components = dict_get_int(data, "jpeg_components");
