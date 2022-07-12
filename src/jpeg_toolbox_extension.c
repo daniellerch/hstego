@@ -561,66 +561,6 @@ void write_file(PyObject *data, const char *path)
       cinfo.quant_tbl_ptrs[n] = NULL;
 
 
-   /* AC/DC Huffman tables */
-   if (cinfo.optimize_coding == FALSE)
-   {
-      PyObject *ac_huff_tables = dict_get_object(data, "ac_huff_tables");
-      for(ssize_t n=0; n<PyList_Size(ac_huff_tables); n++)
-      {
-         if(cinfo.ac_huff_tbl_ptrs[n] == NULL)
-            cinfo.ac_huff_tbl_ptrs[n] = 
-               jpeg_alloc_huff_table((j_common_ptr) &cinfo);
-
-         PyObject* item = PyList_GetItem(ac_huff_tables, n);
-         PyObject* counts = dict_get_object(item, "counts");
-         PyObject* symbols = dict_get_object(item, "symbols");
-
-         for(size_t i=1; i<=16; i++)
-         {
-            PyObject *item = PyList_GetItem(counts, i-1);
-            int value = PyLong_AsLong(item);   
-            cinfo.ac_huff_tbl_ptrs[n]->bits[i] = (UINT8) value;
-         }
-
-         for(size_t i=0; i<256; i++)
-         {
-            PyObject *item = PyList_GetItem(symbols, i);
-            int value = PyLong_AsLong(item);   
-            cinfo.ac_huff_tbl_ptrs[n]->huffval[i] = (UINT8) value;
-         }
-      }
-
-      PyObject *dc_huff_tables = dict_get_object(data, "dc_huff_tables");
-      for(ssize_t n=0; n<PyList_Size(dc_huff_tables); n++)
-      {
-         if(cinfo.dc_huff_tbl_ptrs[n] == NULL)
-            cinfo.dc_huff_tbl_ptrs[n] = 
-               jpeg_alloc_huff_table((j_common_ptr) &cinfo);
-
-         PyObject* item = PyList_GetItem(dc_huff_tables, n);
-         PyObject* counts = dict_get_object(item, "counts");
-         PyObject* symbols = dict_get_object(item, "symbols");
-
-         for(size_t i=1; i<=16; i++)
-         {
-            PyObject *item = PyList_GetItem(counts, i-1);
-            int value = PyLong_AsLong(item);   
-            cinfo.dc_huff_tbl_ptrs[n]->bits[i] = (UINT8) value;
-         }
-
-         for(size_t i=0; i<256; i++)
-         {
-            PyObject *item = PyList_GetItem(symbols, i);
-            int value = PyLong_AsLong(item);   
-            cinfo.dc_huff_tbl_ptrs[n]->huffval[i] = (UINT8) value;
-         }
-      }
-   }
-
-
-
-
-
 
    jpeg_finish_compress(&cinfo);
    jpeg_destroy_compress(&cinfo);
