@@ -8,9 +8,14 @@
 #include "stc_interface.h"
 
 
+#include <Python.h>
+
+
+
+
 uint h = 10;    // constraint height of STC code
 
-int stc_hide(uint cover_length, int* cover, float* costs, 
+LIBRARY_API int stc_hide(uint cover_length, int* cover, float* costs, 
              uint message_length, u8* message, int* stego) {
 
     const uint n = cover_length;       
@@ -31,7 +36,7 @@ int stc_hide(uint cover_length, int* cover, float* costs,
 }
 
 
-int stc_unhide(uint stego_length, int* stego, 
+LIBRARY_API int stc_unhide(uint stego_length, int* stego, 
                   uint message_length, u8* message) {
 
     unsigned int* num_msg_bits = new unsigned int[2];

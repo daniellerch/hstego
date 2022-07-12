@@ -28,13 +28,13 @@ base = os.path.dirname(__file__)
 if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
     base = os.path.join(sys._MEIPASS, 'dist-packages') 
 
-jpg_candidates = glob.glob(os.path.join(base, 'hstego_jpeg_toolbox_extension.*.so'))
+jpg_candidates = glob.glob(os.path.join(base, 'hstego_jpeg_toolbox_extension*.so'))
 if not jpg_candidates:
     print("JPEG Toolbox library not found:", base)
     sys.exit(0)
 jpeg = CDLL(jpg_candidates[0])
 
-stc_candidates = glob.glob(os.path.join(base, 'hstego_stc_extension.*.so'))
+stc_candidates = glob.glob(os.path.join(base, 'hstego_stc_extension*.so'))
 if not stc_candidates:
     print("STC library not found:", base)
     sys.exit(0)
@@ -80,7 +80,7 @@ def jpeg_save(data, path, use_blocks=False):
     jpeg.write_file.argtypes = py_object,c_char_p
 
     r = copy.deepcopy(data)
-    r["quant_tables"] = r["quant_tables"].tolist()
+    r["quant_tables"] = r["quant_tables"].astype('uint16').tolist()
 
     for i in range(len(r["ac_huff_tables"])):
         r["ac_huff_tables"][i]["counts"] = r["ac_huff_tables"][i]["counts"].tolist()

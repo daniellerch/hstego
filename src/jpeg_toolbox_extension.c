@@ -7,6 +7,19 @@
 #include <setjmp.h>
 #include <Python.h>
 
+#if defined(_MSC_VER)
+#include <BaseTsd.h>
+typedef SSIZE_T ssize_t;
+#endif
+
+
+#ifdef _WIN32
+#define LIBRARY_API __declspec(dllexport)
+#else
+#define LIBRARY_API 
+#endif
+
+
 
 // {{{ struct my_error_mgr
 struct my_error_mgr 
@@ -99,7 +112,7 @@ PyObject *dict_get_object(PyObject *dict, const char* key)
 
 
 // {{{ read_file()
-PyObject* read_file(const char *path)
+LIBRARY_API PyObject* read_file(const char *path)
 {
    PyGILState_STATE gstate = PyGILState_Ensure();
 
@@ -181,6 +194,9 @@ PyObject* read_file(const char *path)
    result = dict_add_int(result, "X_density", cinfo.X_density);
    result = dict_add_int(result, "Y_density", cinfo.Y_density);
    result = dict_add_int(result, "density_unit", cinfo.density_unit);
+   result = dict_add_int(result, "block_size", cinfo.block_size);
+   result = dict_add_int(result, "min_DCT_h_scaled_size", cinfo.min_DCT_h_scaled_size);
+   result = dict_add_int(result, "min_DCT_v_scaled_size", cinfo.min_DCT_v_scaled_size);
    // }}}
 
    // {{{ Components info
@@ -198,6 +214,10 @@ PyObject* read_file(const char *path)
       comp = dict_add_int(comp, "quant_tbl_no", cinfo.comp_info[ci].quant_tbl_no);
       comp = dict_add_int(comp, "ac_tbl_no", cinfo.comp_info[ci].ac_tbl_no);
       comp = dict_add_int(comp, "dc_tbl_no", cinfo.comp_info[ci].dc_tbl_no);
+
+      jpeg_component_info *compptr = cinfo.comp_info + ci;
+      comp = dict_add_int(comp, "DCT_h_scaled_size", compptr->DCT_h_scaled_size);
+      comp = dict_add_int(comp, "DCT_v_scaled_size", compptr->DCT_v_scaled_size);
 
       PyList_Append(comp_info, comp);
       Py_DecRef(comp);
@@ -401,13 +421,14 @@ PyObject* read_file(const char *path)
 // }}}
 
 // {{{ write_file()
-void write_file(PyObject *data, const char *path)
+LIBRARY_API void write_file(PyObject *data, const char *path)
 {
    PyGILState_STATE gstate = PyGILState_Ensure();
 
    FILE *f = NULL;
    struct jpeg_compress_struct cinfo;
    struct my_error_mgr jerr;
+
 
    if((f = fopen(path, "wb")) == NULL)
    {
@@ -451,6 +472,9 @@ void write_file(PyObject *data, const char *path)
    cinfo.X_density = dict_get_int(data, "X_density");
    cinfo.Y_density = dict_get_int(data, "Y_density");
    cinfo.density_unit = dict_get_int(data, "density_unit");
+   cinfo.block_size = dict_get_int(data, "block_size");
+   cinfo.min_DCT_h_scaled_size = dict_get_int(data, "min_DCT_h_scaled_size");
+   cinfo.min_DCT_v_scaled_size = dict_get_int(data, "min_DCT_v_scaled_size");
 
    //cinfo.optimize_coding = dict_get_int(data, "optimize_coding"); XXX
    cinfo.num_components = dict_get_int(data, "jpeg_components");
@@ -471,6 +495,10 @@ void write_file(PyObject *data, const char *path)
       cinfo.comp_info[ci].quant_tbl_no = dict_get_int(item, "quant_tbl_no");
       cinfo.comp_info[ci].ac_tbl_no = dict_get_int(item, "ac_tbl_no");
       cinfo.comp_info[ci].dc_tbl_no = dict_get_int(item, "dc_tbl_no");
+
+      jpeg_component_info *compptr = cinfo.comp_info + ci;
+      compptr->DCT_h_scaled_size = dict_get_int(item, "DCT_h_scaled_size");
+      compptr->DCT_v_scaled_size = dict_get_int(item, "DCT_v_scaled_size");
    }
 
 
@@ -489,7 +517,6 @@ void write_file(PyObject *data, const char *path)
       jpeg_component_info *compptr = cinfo.comp_info + ci;
       compptr->height_in_blocks = height_in_blocks;
       compptr->width_in_blocks = width_in_blocks;
-
 
       coef_arrays[ci] = (cinfo.mem->request_virt_barray)
          ((j_common_ptr) &cinfo, JPOOL_IMAGE, TRUE,
@@ -556,7 +583,6 @@ void write_file(PyObject *data, const char *path)
          {
             PyObject* item = PyList_GetItem(col, j);
             int t = PyLong_AsLong(item);   
-
             if (t<1 || t>65535)
             {
                fprintf(stderr, "Quantization table entries not in range 1..65535");
