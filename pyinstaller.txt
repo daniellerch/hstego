@@ -1,0 +1,29 @@
+
+
+-- LINUX --
+
+sudo pip3 install pyinstaller
+
+python3 setup.py build
+pyinstaller hstego-linux.spec
+
+
+
+-- WINDOWS --
+
+Install: https://visualstudio.microsoft.com/visual-cpp-build-tools, add C++ Build tools
+
+Library jpeg-9c comes from:
+https://github.com/aeagean/LibjpegForWindows
+
+pip install pynstaller
+pip install imageio
+pip install numpy
+pip install scipy
+pip install pycryptodome
+
+
+python.exe .\setup-win.py build
+pyinstaller.exe .\hstego-win.spec
+
+

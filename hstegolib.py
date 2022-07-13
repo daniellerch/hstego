@@ -26,7 +26,9 @@ base = os.path.dirname(__file__)
 
 # running in a pyinstaller bundle
 if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
-    base = os.path.join(sys._MEIPASS, 'dist-packages') 
+    print("pyinstaller tmp dir:", sys._MEIPASS)
+    #os.system("find "+sys._MEIPASS)
+    base = sys._MEIPASS
 
 jpg_candidates = glob.glob(os.path.join(base, 'hstego_jpeg_toolbox_extension*.so'))
 if not jpg_candidates:
@@ -182,9 +184,13 @@ class Cipher:
 
     def decrypt(self, bytes_array):
         """ decrypt """
-        self.ciphertext = bytes_array
-        self.aes_decrypt()
-        return self.decrypted
+        try:
+            self.ciphertext = bytes_array
+            self.aes_decrypt()
+            return self.decrypted
+        except:
+            print("WARNING: message not found")
+            return bytearray()
     # }}}
 
 class Stego:

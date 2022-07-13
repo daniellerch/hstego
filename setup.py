@@ -17,13 +17,12 @@ m_stc = Extension('hstego_stc_extension',
 
 
 
-
 here = os.path.abspath(os.path.dirname(__file__))
 with open(os.path.join(here, 'README.md'), encoding='utf-8') as f:
         long_description = f.read()
 
 setup(name = 'hstego',
-      version = '0.1',
+      version = '0.3',
       author="Daniel Lerch",
       author_email="dlerch@gmail.com",
       url="https://github.com/daniellerch/hstego",
