@@ -49,8 +49,10 @@ setup(name = 'hstego',
       author_email="dlerch@gmail.com",
       url="https://github.com/daniellerch/hstego",
       description = 'Hard to detect image steganography',
-      py_modules = ["hstegolib"],
+      py_modules = ["hstegolib", "hstegogui"],
       scripts = ['hstego.py'],
+      data_files = [('resources', ['resources/hide.png']),
+                    ('resources', ['resources/extract.png'])],
       ext_modules = [m_stc, m_jpg],
       cmdclass={'build_ext': build_ext})
 

@@ -6,9 +6,7 @@ import getpass
 import imageio
 import hstegolib
 
-SPATIAL_EXT = ["png", "pgm", "tif"]
 
-# TODO: Limit payload
 
 def help():
     print("\nUsage:")
@@ -22,12 +20,6 @@ def help():
     print("")
     sys.exit(0)
 
-def is_ext(path, extensions):
-    fn, ext = os.path.splitext(path)
-    if ext[1:].lower() in extensions:
-        return True
-    return False
-
 def same_extension(path1, path2):
     fn1, ext1 = os.path.splitext(path1)
     fn2, ext2 = os.path.splitext(path2)
@@ -39,8 +31,23 @@ def same_extension(path1, path2):
 if __name__ == "__main__":
 
     if len(sys.argv)<=1:
-        help()
+        has_gui = False
+        window = None
+        try:
+            import hstegogui
+            window = hstegogui.init()
+            has_gui = True
+        except:
+            print("WARNING: Graphical user interface cannot be initialized.")
+            import traceback
+            traceback.print_exc()
 
+
+        if has_gui:
+            hstegogui.run(window)
+        else:
+            help()
+    
     elif sys.argv[1] == "embed":
         if len(sys.argv) < 5:
             help()
@@ -60,22 +67,18 @@ if __name__ == "__main__":
         #    sys.exit(-1)
 
         
-        #try:
-        if is_ext(output_img_path, SPATIAL_EXT):
+        if hstegolib.is_ext(output_img_path, hstegolib.SPATIAL_EXT):
 
             hill = hstegolib.HILL()
             hill.embed(input_img_path, msg_file_path, password, output_img_path)
 
-        elif is_ext(input_img_path, "jpg"):
+        elif hstegolib.is_ext(input_img_path, "jpg"):
 
             juniw = hstegolib.J_UNIWARD()
             juniw.embed(input_img_path, msg_file_path, password, output_img_path)
 
         else:
             print("File extension not supported")
-
-        #except Exception as e:
-        #    print("Error, information can not be embedded:", e)
 
 
 
@@ -92,13 +95,12 @@ if __name__ == "__main__":
             password = getpass.getpass(prompt="Password: ")
 
         
-        #try:
-        if is_ext(stego_img_path, SPATIAL_EXT):
+        if hstegolib.is_ext(stego_img_path, hstegolib.SPATIAL_EXT):
 
             hill = hstegolib.HILL()
             hill.extract(stego_img_path, password, output_msg_path)
 
-        elif is_ext(stego_img_path, "jpg"):
+        elif hstegolib.is_ext(stego_img_path, "jpg"):
 
             juniw = hstegolib.J_UNIWARD()
             juniw.extract(stego_img_path, password, output_msg_path)
@@ -107,15 +109,12 @@ if __name__ == "__main__":
             print("File extension not supported")
 
 
-        #except Exception as e:
-        #    print("Error, information can not be extracted:", e)
-
     elif sys.argv[1] == "capacity":
         img_path = sys.argv[2]
-        if is_ext(img_path, SPATIAL_EXT):
+        if hstegolib.is_ext(img_path, hstegolib.SPATIAL_EXT):
             I = imageio.imread(img_path)
             print("Capacity:", hstegolib.spatial_capacity(I), "bytes")
-        elif is_ext(img_path, "jpg"):
+        elif hstegolib.is_ext(img_path, "jpg"):
             jpg = hstegolib.jpeg_load(img_path)
             print("Capacity:", hstegolib.jpg_capacity(jpg), "bytes")
         else:

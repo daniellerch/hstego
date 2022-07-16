@@ -12,7 +12,7 @@ a = Analysis(
        ('build/lib.linux-x86_64-3.10/hstego_stc_extension.cpython-310-x86_64-linux-gnu.so', '.')
     ],
     datas=[],
-    hiddenimports=[],
+    hiddenimports=['PIL._tkinter_finder'],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],

@@ -18,28 +18,44 @@ from Crypto.Cipher import AES
 from Crypto.Random import get_random_bytes
 from Crypto.Util.Padding import pad, unpad
 
+SPATIAL_EXT = ["png", "pgm", "tif"]
 MAX_PAYLOAD=0.05
 INF = 2**31-1
 
 
 base = os.path.dirname(__file__)
 
+jpg_pattern = 'hstego_jpeg_toolbox_extension*.so'
+stc_pattern = 'hstego_stc_extension*.so'
+
 # running in a pyinstaller bundle
 if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
     base = sys._MEIPASS
 
-jpg_candidates = glob.glob(os.path.join(base, 'hstego_jpeg_toolbox_extension*.so'))
+jpg_candidates = glob.glob(os.path.join(base, jpg_pattern))
+if not jpg_candidates and sys.platform == "linux": # devel mode
+    jpg_candidates = glob.glob('build/lib.linux*/'+jpg_pattern)
 if not jpg_candidates:
     print("JPEG Toolbox library not found:", base)
     sys.exit(0)
 jpeg = CDLL(jpg_candidates[0])
 
-stc_candidates = glob.glob(os.path.join(base, 'hstego_stc_extension*.so'))
+stc_candidates = glob.glob(os.path.join(base, stc_pattern))
+if not stc_candidates and sys.platform == "linux": # devel mode
+    stc_candidates = glob.glob('build/lib.linux*/'+stc_pattern)
 if not stc_candidates:
     print("STC library not found:", base)
     sys.exit(0)
 stc = CDLL(stc_candidates[0])
 
+
+# {{{ is_ext()
+def is_ext(path, extensions):
+    fn, ext = os.path.splitext(path)
+    if ext[1:].lower() in extensions:
+        return True
+    return False
+# }}}
 
 # {{{ jpeg_load()
 def jpeg_load(path, use_blocks=False):
