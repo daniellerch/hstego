@@ -139,7 +139,7 @@ class Wizard:
             msg_path = self.msg_entry.get()
             input_msg_content = self.msg_text.get("1.0", END)
             if not self.use_msg_file.get():
-                if len(input_msg_content.strip())==0:
+                if len(input_msg_content.strip())<=8:
                     messagebox.showerror('Error', 'Please, write a longer message')
                     return True
             elif not os.path.exists(msg_path):
@@ -226,7 +226,12 @@ class Wizard:
 
         if cover_image_path == stego_image_path:
             messagebox.showerror('Error', 'Cover and stego cannot be the same image')
-            return
+            return False
+
+        if self.get_msg_size() > self.get_cover_capacity():
+            messagebox.showerror('Error', 'The message is too long for the selected cover')
+            return False
+
 
         msg_path = self.msg_entry.get()
         password = self.passw_hide_entry.get()
@@ -237,15 +242,15 @@ class Wizard:
             tmp.write(input_msg_content.encode())
             msg_path = tmp.name
             tmp.close()
-            with open(msg_path) as f:
-                print("--->", f.read() )
 
-        print("hide:", cover_image_path, msg_path, password, stego_image_path)
-        
+        if os.path.getsize(msg_path) <= 8:
+            messagebox.showerror('Error', 'Please, write a longer message')
+            return False
 
-        if hstegolib.is_ext(self.cover_entry.get(), hstegolib.SPATIAL_EXT):
+        if hstegolib.is_ext(cover_image_path, hstegolib.SPATIAL_EXT):
             hill = hstegolib.HILL()
             hill.embed(cover_image_path, msg_path, password, stego_image_path)
+            hill.extract(stego_image_path, password, "test.txt")
         else:
             juniw = hstegolib.J_UNIWARD()
             juniw.embed(cover_image_path, msg_path, password, stego_image_path)
@@ -253,6 +258,7 @@ class Wizard:
         if tmp:
             os.unlink(tmp.name)
 
+        return True
         # }}}
 
     def extract(self):
@@ -271,7 +277,6 @@ class Wizard:
             output_msg_path = tmp.name
 
 
-        print("extract:", stego_image_path, password, output_msg_path)
         if hstegolib.is_ext(stego_image_path, hstegolib.SPATIAL_EXT):
             hill = hstegolib.HILL()
             hill.extract(stego_image_path, password, output_msg_path)
@@ -282,10 +287,9 @@ class Wizard:
 
         with open(output_msg_path) as f:
             content = f.read()
-            if len(content) == 0:
+            if len(content) < 0:
                 messagebox.showerror('Error', 'Message not found, may be the password is wrong')
                 return False
-            print("content:", content)
             self.msg_output_text["state"] = 'normal'
             self.msg_output_text.delete("1.0", END)
             self.msg_output_text.insert("1.0", content)
@@ -536,10 +540,11 @@ class StepScreen:
 
 
         def threaded_hide(wz):
-            wz.hide()
+            r = wz.hide()
             wz.progressbar.place_forget()
-            messagebox.showinfo('Success', 'The message has been hidden')
-            wz.restart()
+            if r:
+                messagebox.showinfo('Success', 'The message has been hidden')
+                wz.restart()
 
         def savestego():
             if wz.has_errors():
@@ -679,8 +684,6 @@ class StepScreen:
             wz.progressbar.place_forget()
             if r:
                 messagebox.showinfo('Success', 'The message has been extracted')
-            else:
-                messagebox.showerror('Error', 'Sorry, an error has occurred')
 
         def extract_msg():
             if wz.has_errors():
@@ -785,13 +788,6 @@ def run(window):
     ss.create_step_3E_screen()
 
     window.mainloop()
-
-
-
-
-if __name__ == "__main__":
-    gui()
-
 
 
 
