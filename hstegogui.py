@@ -73,18 +73,16 @@ class Wizard:
         self.capacity_entry = None
         self.msg_size_entry = None
         self.dest_msg = None
+        self.output_msg_path = None
 
         step = {
             "1H": PanedWindow(window),
             "2H": PanedWindow(window),
             "3H": PanedWindow(window),
             "4H": PanedWindow(window),
-            "5H": PanedWindow(window),
             "1E": PanedWindow(window),
             "2E": PanedWindow(window),
             "3E": PanedWindow(window),
-            "4E": PanedWindow(window),
-            "5E": PanedWindow(window),
         }
         step["1E"] = step["1H"] # First step is the same for H(ide) and E(xtract)
         self.step = step
@@ -174,7 +172,7 @@ class Wizard:
         n = int(self.key[0])+1
         self.key = str(n)+self.key[1]
         self.step[self.key].place(x=0, y=0, width=PANE_W, height=PANE_H)
-        if self.key[0] == "4":
+        if self.key == "4H" or self.key == "3E":
             self.next_btn["state"] = "disable"
         self.prev_btn["state"] = "enable" 
         # }}}
@@ -214,7 +212,7 @@ class Wizard:
             content = self.msg_text.get("1.0", END).strip()
         else:
             msg_path = self.msg_entry.get()
-            with open('data.txt', 'r') as f:
+            with open(msg_path, 'r') as f:
                 content = f.read()
 
         return len(content.encode())
@@ -238,6 +236,12 @@ class Wizard:
             tmp = tempfile.NamedTemporaryFile(delete=False)
             tmp.write(input_msg_content.encode())
             msg_path = tmp.name
+            tmp.close()
+            with open(msg_path) as f:
+                print("--->", f.read() )
+
+        print("hide:", cover_image_path, msg_path, password, stego_image_path)
+        
 
         if hstegolib.is_ext(self.cover_entry.get(), hstegolib.SPATIAL_EXT):
             hill = hstegolib.HILL()
@@ -247,10 +251,54 @@ class Wizard:
             juniw.embed(cover_image_path, msg_path, password, stego_image_path)
 
         if tmp:
-            tmp.close()
             os.unlink(tmp.name)
 
         # }}}
+
+    def extract(self):
+        """ Extract the message using the info in the inputs """
+        # {{{
+        stego_image_path = self.stego_image_path
+        password = self.passw_extract_entry.get()
+        tmp = None
+
+        if self.dest_msg.get() == "FILE":
+            output_msg_path = self.output_msg_path
+        else:
+            input_msg_content = self.msg_text.get("1.0", END).strip()
+            tmp = tempfile.NamedTemporaryFile(delete=False)
+            tmp.write(input_msg_content.encode())
+            output_msg_path = tmp.name
+
+
+        print("extract:", stego_image_path, password, output_msg_path)
+        if hstegolib.is_ext(stego_image_path, hstegolib.SPATIAL_EXT):
+            hill = hstegolib.HILL()
+            hill.extract(stego_image_path, password, output_msg_path)
+        else:
+            juniw = hstegolib.J_UNIWARD()
+            juniw.extract(stego_image_path, password, output_msg_path)
+
+
+        with open(output_msg_path) as f:
+            content = f.read()
+            if len(content) == 0:
+                messagebox.showerror('Error', 'Message not found, may be the password is wrong')
+                return False
+            print("content:", content)
+            self.msg_output_text["state"] = 'normal'
+            self.msg_output_text.delete("1.0", END)
+            self.msg_output_text.insert("1.0", content)
+            self.msg_output_text["state"] = 'disabled'
+
+        if tmp:
+            tmp.close()
+            os.unlink(tmp.name)
+        
+        return True
+        # }}}
+
+
 
 
 
@@ -335,7 +383,9 @@ class StepScreen:
                                 ("JPEG files", "*.jpg"),
                             )
             )
-              
+            if not filename:
+                return
+
             wz.cover_entry.delete(0, END)
             wz.cover_entry.insert(0, filename)
 
@@ -379,7 +429,6 @@ class StepScreen:
 
         label = Label(wz.panel("3H"), text='Message:', font=FONT)
         label.place(x=10, y=110)
-        #wz.msg_text = scrolledtext.ScrolledText(wz.panel("3H"), height=9, width=70)
         wz.msg_text = CustomText(wz.panel("3H"), height=9, width=70)
         wz.msg_text.place(x=10, y=130)
 
@@ -504,6 +553,9 @@ class StepScreen:
                     initialfile = 'stego.'+ext,
                     defaultextension="."+ext
             )
+            if not f:
+                return
+
             wz.dst_stego_image_path = f
             
             wz.progressbar.place(x=10, y=300, width=580, height=30)
@@ -512,8 +564,6 @@ class StepScreen:
 
         btn = Button(wz.panel("4H"), command=savestego, text="Save")
         btn.place(x=400, y=110, width=180, height=30)
-
-
 
         # }}}
 
@@ -546,7 +596,11 @@ class StepScreen:
                                 ("JPEG files", "*.jpg"),
                             )
               )
-              
+              if not filename:
+                  return
+
+              wz.stego_image_path = filename
+
               wz.stego_entry.delete(0, END)
               wz.stego_entry.insert(0, filename)
 
@@ -576,52 +630,81 @@ class StepScreen:
             wz.panel("3E"), 
             ' Step 3 ',
             'Enter the password!',
-            'It is used to decrypt and extract the message.',
+            'You can extract the message here or into a file.',
             10, 10, 580, 80
         )
 
 
-        label = Label(wz.panel("3E"), text='Password:', font=FONT)
-        label.place(x=10, y=120)
-        wz.passw_extract_entry = Entry(wz.panel("3E"), show="*", width=5)
-        wz.passw_extract_entry.place(x=100, y=110, width=250, height=30)
+        label = Label(wz.panel("3E"), text='Message:', font=FONT)
+        label.place(x=10, y=110)
+        wz.msg_output_text = scrolledtext.ScrolledText(wz.panel("3E"), 
+                                                       height=9, width=70)
+        wz.msg_output_text.place(x=10, y=130)
+        wz.msg_output_text.configure(bg='#FFFFFF')
+        wz.msg_output_text["state"] = 'disabled'
 
+        def on_radio_change():
+            if wz.dest_msg.get() == "FILE":
+                wz.msg_output_text.configure(bg='#D9D9D9')
+            else:
+                wz.msg_output_text.configure(bg='#FFFFFF')
 
         wz.dest_msg = StringVar()
         Radiobutton(
             wz.panel("3E"), 
             variable=wz.dest_msg, 
             value="SCREEN", 
-            width=40, 
-            text="Show the extracted message"
-        ).place(x=10, y=275)
+            width=25, 
+            command=on_radio_change,
+            text="Show the message"
+        ).place(x=10, y=310)
         Radiobutton(
             wz.panel("3E"), 
             variable=wz.dest_msg, 
             value="FILE", 
-            width=40, 
-            text="Save the extracted message into a file"
-        ).place(x=10, y=300)
+            width=25, 
+            command=on_radio_change,
+            text="Save the message to a file"
+        ).place(x=10, y=330)
         wz.dest_msg.set("SCREEN")
 
 
+        label = Label(wz.panel("3E"), text='Password:', font=FONT)
+        label.place(x=280, y=320)
+        wz.passw_extract_entry = Entry(wz.panel("3E"), show="*")
+        wz.passw_extract_entry.place(x=360, y=310, width=230, height=30)
+
+        def threaded_extract(wz):
+            r = wz.extract()
+            wz.progressbar.place_forget()
+            if r:
+                messagebox.showinfo('Success', 'The message has been extracted')
+            else:
+                messagebox.showerror('Error', 'Sorry, an error has occurred')
+
+        def extract_msg():
+            if wz.has_errors():
+                return
+
+            if wz.dest_msg.get() == "FILE":
+                f = filedialog.asksaveasfilename(
+                        initialfile = 'secret.txt',
+                        defaultextension=".txt"
+                )
+                if not f:
+                    return
+                wz.output_msg_path = f
+
+            t = threading.Thread(target=threaded_extract, args=[wz])
+            t.start()
+
+        msg_btn = Button(wz.panel("3E"), command=extract_msg, 
+                         text="Extract the message")
+        msg_btn.place(x=360, y=350, width=230, height=30)
+
 
 
         # }}}
-
-    def create_step_4E_screen(self):
-        # {{{
-        wz = self.wz
-
-        text_frame(
-            wz.panel("4E"), 
-            ' Step 4 ',
-            'Extract the message!',
-            'You can extract the message here or into a file.',
-            10, 10, 580, 80
-        )
-        # }}}
-
 
 
 
@@ -700,7 +783,6 @@ def run(window):
     # Extraction screens
     ss.create_step_2E_screen()
     ss.create_step_3E_screen()
-    ss.create_step_4E_screen()
 
     window.mainloop()
 
