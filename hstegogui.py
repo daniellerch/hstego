@@ -285,15 +285,16 @@ class Wizard:
             juniw.extract(stego_image_path, password, output_msg_path)
 
 
-        with open(output_msg_path) as f:
-            content = f.read()
-            if len(content) < 0:
-                messagebox.showerror('Error', 'Message not found, may be the password is wrong')
-                return False
-            self.msg_output_text["state"] = 'normal'
-            self.msg_output_text.delete("1.0", END)
-            self.msg_output_text.insert("1.0", content)
-            self.msg_output_text["state"] = 'disabled'
+        if self.dest_msg.get() == "SCREEN":
+            with open(output_msg_path) as f:
+                content = f.read()
+                if len(content) < 0:
+                    messagebox.showerror('Error', 'Message not found, may be the password is wrong')
+                    return False
+                self.msg_output_text["state"] = 'normal'
+                self.msg_output_text.delete("1.0", END)
+                self.msg_output_text.insert("1.0", content)
+                self.msg_output_text["state"] = 'disabled'
 
         if tmp:
             tmp.close()
