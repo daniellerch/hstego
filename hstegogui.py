@@ -18,6 +18,7 @@ from tkinter import messagebox
 from tkinter import scrolledtext
 
 from PIL import Image, ImageTk
+import numpy as np
 
 WIN_W = 600
 WIN_H = 450
@@ -25,6 +26,31 @@ PANE_W = 600
 PANE_H = 380
 FONT = ("Helvetica", "11", "normal")
 FONT_B = ("Helvetica", "11", "bold")
+
+
+class CustomText(scrolledtext.ScrolledText):
+    def __init__(self, *args, **kwargs):
+        # {{{
+        """A text widget that report on internal widget commands"""
+        scrolledtext.ScrolledText.__init__(self, *args, **kwargs)
+
+        # create a proxy for the underlying widget
+        self._orig = self._w + "_orig"
+        self.tk.call("rename", self._w, self._orig)
+        self.tk.createcommand(self._w, self._proxy)
+        # }}}
+
+    def _proxy(self, command, *args):
+        # {{{
+        cmd = (self._orig, command) + args
+        result = self.tk.call(cmd)
+
+        if command in ("insert", "delete", "replace"):
+            self.event_generate("<<TextModified>>")
+
+        return result
+        # }}}
+
 
 
 
@@ -44,6 +70,9 @@ class Wizard:
         self.stego_entry = None
         self.passw_hide_entry = None
         self.passw_extract_entry = None
+        self.capacity_entry = None
+        self.msg_size_entry = None
+        self.dest_msg = None
 
         step = {
             "1H": PanedWindow(window),
@@ -119,6 +148,12 @@ class Wizard:
                 messagebox.showerror('Error', 'Please, select a valid message file')
                 return True
 
+        if self.key == "3E":
+            password = self.passw_extract_entry.get()
+            if len(password) == 0:
+                messagebox.showerror('Error', 'Please, enter a password')
+                return True
+
         if self.key == "4H":
             password = self.passw_hide_entry.get()
             if len(password) < 8:
@@ -154,6 +189,35 @@ class Wizard:
         if self.key[0] == "1":
             self.prev_btn["state"] = "disable" 
         self.next_btn["state"] = "enable" 
+        # }}}
+
+    def get_cover_capacity(self):
+        # {{{
+        image_capacity = 0
+        img_path = self.cover_entry.get()
+
+        if hstegolib.is_ext(img_path, hstegolib.SPATIAL_EXT):
+            I = np.asarray(Image.open(img_path))
+            image_capacity = hstegolib.spatial_capacity(I)
+        else:
+            jpg = hstegolib.jpeg_load(img_path)
+            image_capacity = hstegolib.jpg_capacity(jpg)
+        return image_capacity
+        # }}}
+
+    def get_msg_size(self):
+        # {{{
+        msg_size = 0
+        content = ""
+
+        if not self.use_msg_file.get():
+            content = self.msg_text.get("1.0", END).strip()
+        else:
+            msg_path = self.msg_entry.get()
+            with open('data.txt', 'r') as f:
+                content = f.read()
+
+        return len(content.encode())
         # }}}
 
     def hide(self):
@@ -263,27 +327,34 @@ class StepScreen:
         canvas.place(x=0, y=150)
 
         def loadcover():
-              filename = filedialog.askopenfilename(
+            filename = filedialog.askopenfilename(
                             initialdir = ".",
                             title = "Select a File",
                             filetypes = (
                                 ("PNG files", "*.png"),
                                 ("JPEG files", "*.jpg"),
                             )
-              )
+            )
               
-              wz.cover_entry.delete(0, END)
-              wz.cover_entry.insert(0, filename)
+            wz.cover_entry.delete(0, END)
+            wz.cover_entry.insert(0, filename)
 
-              img = Image.open(filename)
-              w, h = img.size
-              new_h = 250
-              new_w = int(new_h * w / h)
-              img = img.resize((new_w, new_h))
-              img = ImageTk.PhotoImage(img)
-              x_offset = int(WIN_W/2-new_w/2)
-              canvas.create_image(x_offset, 0, anchor=NW, image=img)
-              canvas.img = img
+            img = Image.open(filename)
+            w, h = img.size
+            new_h = 250
+            new_w = int(new_h * w / h)
+            img = img.resize((new_w, new_h))
+            img = ImageTk.PhotoImage(img)
+            x_offset = int(WIN_W/2-new_w/2)
+            canvas.create_image(x_offset, 0, anchor=NW, image=img)
+            canvas.img = img
+
+            # Update image capacity entry
+            capacity = wz.get_cover_capacity()
+            wz.capacity_entry["state"] = "normal"
+            wz.capacity_entry.delete(0, END)
+            wz.capacity_entry.insert(0, str(capacity)+' ')
+            wz.capacity_entry["state"] = "disabled"
 
 
         btn = Button(wz.panel("2H"), command=loadcover, text="Select image")
@@ -308,22 +379,40 @@ class StepScreen:
 
         label = Label(wz.panel("3H"), text='Message:', font=FONT)
         label.place(x=10, y=110)
-        wz.msg_text = scrolledtext.ScrolledText(wz.panel("3H"), height=9, width=70)
+        #wz.msg_text = scrolledtext.ScrolledText(wz.panel("3H"), height=9, width=70)
+        wz.msg_text = CustomText(wz.panel("3H"), height=9, width=70)
         wz.msg_text.place(x=10, y=130)
 
+        def on_change(event):
+            sz = wz.get_msg_size()
+            wz.msg_size_entry["state"] = "normal"
+            wz.msg_size_entry.delete(0, END)
+            wz.msg_size_entry.insert(0, str(sz)+' ')
+            wz.msg_size_entry["state"] = "disabled"
+
+        wz.msg_text.bind("<<TextModified>>", on_change)
 
 
         def loadmsg():
-              filename = filedialog.askopenfilename(
+            filename = filedialog.askopenfilename(
                             initialdir = ".",
                             title = "Select a File",
                             filetypes = (
                                 ("All files", "*.*"),
                             )
-              )
-              wz.msg_entry.delete(0, END)
-              wz.msg_entry.insert(0, filename)
-     
+            )
+            wz.msg_entry.delete(0, END)
+            wz.msg_entry.insert(0, filename)
+
+            # Update msg size entry
+            sz = wz.get_msg_size()
+            wz.msg_size_entry["state"] = "normal"
+            wz.msg_size_entry.delete(0, END)
+            wz.msg_size_entry.insert(0, str(sz)+' ')
+            wz.msg_size_entry["state"] = "disabled"
+
+
+
         msg_btn = Button(wz.panel("3H"), command=loadmsg, text="Select message file")
         msg_btn.place(x=10, y=340, width=150, height=30)
         wz.msg_entry = Entry(wz.panel("3H"))
@@ -371,28 +460,22 @@ class StepScreen:
 
 
         # Capacity info
-        image_capacity = 129
-        msg_capacity = 10
         label = Label(wz.panel("4H"), 
                       text='Capacity of the selected image:', font=FONT)
         label.place(x=10, y=180)
-        entry = Entry(wz.panel("4H"), style='Custom.TEntry', justify='right')
-        entry.place(x=230, y=170, width=140, height=30)
-        entry.delete(0, END)
-        entry.insert(0, str(image_capacity)+' ')
-        entry["state"] = 'disabled';
-        label = Label(wz.panel("4H"), text='kb', font=FONT)
+        wz.capacity_entry = Entry(wz.panel("4H"), style='Custom.TEntry', justify='right')
+        wz.capacity_entry.place(x=230, y=170, width=140, height=30)
+        wz.capacity_entry["state"] = 'disabled';
+        label = Label(wz.panel("4H"), text='bytes', font=FONT)
         label.place(x=380, y=180)
 
         label = Label(wz.panel("4H"), 
                       text='Size of the message to send:', font=FONT)
         label.place(x=10, y=220)
-        entry = Entry(wz.panel("4H"), style='Custom.TEntry', justify='right')
-        entry.place(x=230, y=210, width=140, height=30)
-        entry.delete(0, END)
-        entry.insert(0, str(msg_capacity)+' ')
-        entry["state"] = 'disabled';
-        label = Label(wz.panel("4H"), text='kb', font=FONT)
+        wz.msg_size_entry = Entry(wz.panel("4H"), style='Custom.TEntry', justify='right')
+        wz.msg_size_entry.place(x=230, y=210, width=140, height=30)
+        wz.msg_size_entry["state"] = 'disabled';
+        label = Label(wz.panel("4H"), text='bytes', font=FONT)
         label.place(x=380, y=220)
 
 
@@ -502,6 +585,28 @@ class StepScreen:
         label.place(x=10, y=120)
         wz.passw_extract_entry = Entry(wz.panel("3E"), show="*", width=5)
         wz.passw_extract_entry.place(x=100, y=110, width=250, height=30)
+
+
+        wz.dest_msg = StringVar()
+        Radiobutton(
+            wz.panel("3E"), 
+            variable=wz.dest_msg, 
+            value="SCREEN", 
+            width=40, 
+            text="Show the extracted message"
+        ).place(x=10, y=275)
+        Radiobutton(
+            wz.panel("3E"), 
+            variable=wz.dest_msg, 
+            value="FILE", 
+            width=40, 
+            text="Save the extracted message into a file"
+        ).place(x=10, y=300)
+        wz.dest_msg.set("SCREEN")
+
+
+
+
         # }}}
 
     def create_step_4E_screen(self):
