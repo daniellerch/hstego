@@ -35,6 +35,8 @@ if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
 jpg_candidates = glob.glob(os.path.join(base, jpg_pattern))
 if not jpg_candidates and sys.platform == "linux": # devel mode
     jpg_candidates = glob.glob('build/lib.linux*/'+jpg_pattern)
+if not jpg_candidates and sys.platform == "win32": # devel mode
+    jpg_candidates = glob.glob('build/lib.win*/'+jpg_pattern)
 if not jpg_candidates:
     print("JPEG Toolbox library not found:", base)
     sys.exit(0)
@@ -43,6 +45,8 @@ jpeg = CDLL(jpg_candidates[0])
 stc_candidates = glob.glob(os.path.join(base, stc_pattern))
 if not stc_candidates and sys.platform == "linux": # devel mode
     stc_candidates = glob.glob('build/lib.linux*/'+stc_pattern)
+if not stc_candidates and sys.platform == "win32": # devel mode
+    stc_candidates = glob.glob('build/lib.win*/'+stc_pattern)
 if not stc_candidates:
     print("STC library not found:", base)
     sys.exit(0)
@@ -272,6 +276,7 @@ class Stego:
         data_len_bits = self.bytes_to_bits(data_len)
 
         stego_array_1 = self.hide_stc(cover_array[:64], costs_array[:64], data_len_bits, mx, mn)
+        #sys.exit(0) # XXX
         stego_array_2 = self.hide_stc(cover_array[64:], costs_array[64:], message_bits, mx, mn)
         stego_array = np.hstack((stego_array_1, stego_array_2))
 
@@ -289,6 +294,12 @@ class Stego:
         extracted_message = (c_ubyte*len(stego_array))()
         s = stc.stc_unhide(len(stego_array), stego, message_len, extracted_message)
 
+        """
+        if len(extracted_message) > message_len:
+            print("ERROR, inconsistent message lenght:", 
+                  len(extracted_message), ">", message_len)
+            sys.exit(0)
+        """
 
         # Message bits to bytes
         data = bytearray()
