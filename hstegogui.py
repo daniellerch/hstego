@@ -64,7 +64,8 @@ class About(simpledialog.Dialog):
 
     def body(self, frame):
         # {{{
-        frame.configure(width=350, height=250)
+        super().configure(background='#D9D9D9')
+        frame.configure(width=350, height=250, background='#D9D9D9')
 
         Label(frame, text='Developed by', font=FONT).place(x=12, y=20)
         Label(frame, text='Daniel Lerch', font=FONT_B).place(x=107, y=20)
@@ -72,8 +73,8 @@ class About(simpledialog.Dialog):
 
         def click_www(event):
             webbrowser.open_new(event.widget.cget("text"))
-        lnk = tk.Label(frame, text='https://daniellerch.me', 
-                        foreground="blue", cursor="hand2")
+        lnk = tk.Label(frame, text='https://daniellerch.me', font=FONT,
+                        foreground="blue", background="#D9D9D9", cursor="hand2")
         lnk.bind("<Button-1>", click_www)
         lnk.place(x=100, y=46)
 
@@ -84,7 +85,8 @@ class About(simpledialog.Dialog):
         def click_github(event):
             webbrowser.open_new(event.widget.cget("text"))
         lnk = tk.Label(frame, text='https://github.com/daniellerch/hstego', 
-                        foreground="blue", cursor="hand2")
+                       font=FONT, foreground="blue", background="#D9D9D9", 
+                       cursor="hand2")
         lnk.bind("<Button-1>", click_github)
         lnk.place(x=50, y=160)
 
