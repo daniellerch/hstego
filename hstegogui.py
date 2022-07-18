@@ -10,12 +10,15 @@ import base64
 import tempfile
 import hstegolib
 import threading
+import webbrowser
 
+import tkinter as tk
 from tkinter import *
 from tkinter.ttk import *
 from tkinter import filedialog
 from tkinter import messagebox
 from tkinter import scrolledtext
+from tkinter import simpledialog
 
 from PIL import Image, ImageTk
 import numpy as np
@@ -51,6 +54,62 @@ class CustomText(scrolledtext.ScrolledText):
         return result
         # }}}
 
+
+
+class About(simpledialog.Dialog):
+    def __init__(self, parent, title):
+        # {{{
+        super().__init__(parent, title)
+        # }}}
+
+    def body(self, frame):
+        # {{{
+        frame.configure(width=350, height=250)
+
+        Label(frame, text='Developed by', font=FONT).place(x=12, y=20)
+        Label(frame, text='Daniel Lerch', font=FONT_B).place(x=107, y=20)
+        Label(frame, text='<dlerch@gmail.com>', font=FONT).place(x=200, y=20)
+
+        def click_www(event):
+            webbrowser.open_new(event.widget.cget("text"))
+        lnk = tk.Label(frame, text='https://daniellerch.me', 
+                        foreground="blue", cursor="hand2")
+        lnk.bind("<Button-1>", click_www)
+        lnk.place(x=100, y=46)
+
+        Label(frame, text='Version: 0.3 (alpha)', font=FONT).place(x=110, y=80)
+
+
+        Label(frame, text='GitHub:', font=FONT).place(x=150, y=140)
+        def click_github(event):
+            webbrowser.open_new(event.widget.cget("text"))
+        lnk = tk.Label(frame, text='https://github.com/daniellerch/hstego', 
+                        foreground="blue", cursor="hand2")
+        lnk.bind("<Button-1>", click_github)
+        lnk.place(x=50, y=160)
+
+        return frame
+        # }}}
+
+    def ok_pressed(self):
+        # {{{
+        self.destroy()
+        # }}}
+
+    def cancel_pressed(self):
+        # {{{
+        self.destroy()
+        # }}}
+
+    def buttonbox(self):
+        # {{{
+        self.ok_button = Button(self, text='OK', width=5, command=self.ok_pressed)
+        self.ok_button.pack(side="left")
+        self.ok_button.place(x=240, y=210, width=100, height=30)
+
+        self.bind("<Return>", lambda event: self.ok_pressed())
+        self.bind("<Escape>", lambda event: self.cancel_pressed())
+        # }}}
 
 
 
@@ -93,7 +152,7 @@ class Wizard:
         nav_panel.place(x=0, y=PANE_H, width=PANE_W, height=WIN_H-PANE_H)
 
         def about_fn():
-            print("about")
+            about = About(window, "About")
 
         self.about_btn = navbtn(nav_panel, "About", about_fn,  100, 20)
         self.restart_btn = navbtn(nav_panel, "Restart", self.restart,  205, 20)
@@ -321,7 +380,7 @@ class StepScreen:
             wz.panel("1H"), 
             ' Step 1 ',
             'Welcome to HStego!',
-            'HStego allows you to hide information inside an image.',
+            'To hide data within an image, select "hide" or "extract" and press "next"',
             10, 10, 580, 80
         )
 
@@ -367,7 +426,7 @@ class StepScreen:
             wz.panel("2H"), 
             ' Step 2 ',
             'Select a cover image!',
-            'Use your own photography and delete the original source after hidding data.',
+            'Select the image in which you want to hide the secret message.',
             10, 10, 580, 80
         )
 
@@ -428,7 +487,7 @@ class StepScreen:
             wz.panel("3H"), 
             ' Step 3 ',
             'Write a message!',
-            'You can write a message or select a file.',
+            'You can write a secret message or select a secret file.',
             10, 10, 580, 80
         )
 
@@ -581,7 +640,7 @@ class StepScreen:
             wz.panel("2E"), 
             ' Step 2 ',
             'Select a stego image!',
-            'The stego image needs to contain a message hidden with HStego.',
+            'The stego image must contain a message hidden with HStego.',
             10, 10, 580, 80
         )
 
@@ -747,6 +806,7 @@ def init():
             ("disabled", "white")
         ]
     )
+
 
 
     return window
