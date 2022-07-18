@@ -135,6 +135,8 @@ class Wizard:
         self.msg_size_entry = None
         self.dest_msg = None
         self.output_msg_path = None
+        self.msg_output_text = None       
+
 
         step = {
             "1H": PanedWindow(window),
@@ -179,6 +181,31 @@ class Wizard:
             self.hide_btn.config(style='TButton')
         if self.extract_btn:
            self.extract_btn.config(style='TButton')
+
+        if self.msg_text:
+            state = self.msg_text["state"] 
+            self.msg_text["state"] = 'normal'
+            self.msg_text.delete("1.0", END)
+            self.msg_text["state"] = state
+
+        if self.msg_output_text:
+            state = self.msg_output_text["state"] 
+            self.msg_output_text["state"] = 'normal'
+            self.msg_output_text.delete("1.0", END)
+            self.msg_output_text["state"] = state
+
+        if self.passw_hide_entry:
+            self.passw_hide_entry.delete(0, END)
+
+        if self.passw_extract_entry:
+            self.passw_extract_entry.delete(0, END)
+
+        if self.cover_entry:
+            self.cover_entry .delete(0, END)
+
+        if self.stego_entry:
+            self.stego_entry .delete(0, END)
+
         # }}}
 
     def has_errors(self):
