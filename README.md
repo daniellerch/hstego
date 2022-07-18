@@ -11,51 +11,32 @@ This tool uses some of the most advanced steganography methods known today, alon
 
 
 ## Documentation:
-- [Download](#download)
-- [GUI examples](#gui-examples)
+- [Install](#install)
 - [Command line examples](#command-line-examples)
-- [Install from source code](#install)
 - [Python examples](#python-examples)
 - [Technical details](#technical-details)
 - [Acknowledgments](#acknowledgments)
 <br>
 
 
-## Download
+## Install
 
-HStego is available as a standalone binary for Linux and for Windows. These 
-binaries have a [graphical user interface](#gui-examples), although they can 
-be used using the 
-[command line](#command-line-examples).
+You can install HStego with the following commands:
+```bash 
+sudo pip3 install imageio numpy scipy pycryptodome
+sudo pip3 install git+https://github.com/daniellerch/hstego.git@v0.2
+```
 
-Download Links:
-- [Linux x86\_64](https://github.com/daniellerch/hstego/raw/master/bin/hstego-0.3-linux.x86_64)
-- [Windows AMD64](https://github.com/daniellerch/hstego/raw/master/bin/hstego-0.3-win.amd64.exe)
+Uninstall with:
+```bash 
+sudo pip3 uninstall hstego
+```
 
+Your operating system may need to install some libraries. In case of Debian based systems you can use the following commands:
 
-
-## GUI examples:
-
-The interface is quite intuitive. During hiding HStego prompts for the image, 
-the message to hide, a password, and the resulting stego image. The procedure 
-can be seen in the following images.
-
-<p float="left">
-   <img src='images/hstego-1H.png' width='200'/>
-   <img src='images/hstego-2H.png' width='200'/>
-   <img src='images/hstego-3H.png' width='200'/>
-   <img src='images/hstego-4H.png' width='200'/>
-</p>
-
-During extraction the procedure is similar. HStego asks for the stego image 
-and for the password.
-
-<p float="left">
-   <img src='images/hstego-1E.png' width='200'/>
-   <img src='images/hstego-2E.png' width='200'/>
-   <img src='images/hstego-3E.png' width='200'/>
-</p>
-
+```base
+sudo apt-get install build-essential python-dev libjpeg-dev
+```
 
 ## Command line examples:
 
@@ -82,26 +63,6 @@ hstego.py embed secret.txt cover.jpg stego.jpg MyP4ssw0rd101
 
 ```bash
 hstego.py extract stego.jpg content.txt MyP4ssw0rd101
-```
-
-
-## Install from source code
-
-You can install HStego with the following commands:
-```bash 
-sudo pip3 install imageio numpy scipy pycryptodome
-sudo pip3 install git+https://github.com/daniellerch/hstego.git@v0.3
-```
-
-Uninstall with:
-```bash 
-sudo pip3 uninstall hstego
-```
-
-Your operating system may need to install some libraries. In case of Debian based systems you can use the following commands:
-
-```base
-sudo apt-get install build-essential python-dev libjpeg-dev
 ```
 
 
