@@ -1,6 +1,7 @@
 #include <cstdio>
 #include <cstring>
 #include <cstdlib>
+#include <random>
 #include "common.h"
 
 /*
@@ -151,7 +152,9 @@ u32 *getMatrix(int width, int height) {
 		//boost::mt19937 generator( 1 );
 		//boost::variate_generator< boost::mt19937&, boost::uniform_int< > > rng( generator, boost::uniform_int< >( 0, RAND_MAX ) );
 
-        srand(1);
+        //srand(1);
+
+        std::mt19937 rnd(1);
 
         mask = (1 << (height - 2)) - 1;
         bop = (1 << (height - 1)) + 1;
@@ -161,14 +164,16 @@ u32 *getMatrix(int width, int height) {
             // I know, there will be identical columns.
             for(i = 0; i < width; i++) {
                 //r = ((rng() & mask) << 1) + bop;
-                r = ((rand() & mask) << 1) + bop;
+                //r = ((rand() & mask) << 1) + bop;
+                r = ((rnd() & mask) << 1) + bop;
                 cols[i] = r;
             }
 		} else {
             for(i = 0; i < width; i++) {
                 for(j = -1; j < i;) {
                     //r = ((rng() & mask) << 1) + bop;
-                    r = ((rand() & mask) << 1) + bop;
+                    //r = ((rand() & mask) << 1) + bop;
+                    r = ((rnd() & mask) << 1) + bop;
                     for(j = 0; j < i; j++) {
                         if(cols[j] == r)
                             break;

@@ -276,7 +276,6 @@ class Stego:
         data_len_bits = self.bytes_to_bits(data_len)
 
         stego_array_1 = self.hide_stc(cover_array[:64], costs_array[:64], data_len_bits, mx, mn)
-        #sys.exit(0) # XXX
         stego_array_2 = self.hide_stc(cover_array[64:], costs_array[64:], message_bits, mx, mn)
         stego_array = np.hstack((stego_array_1, stego_array_2))
 
@@ -294,12 +293,10 @@ class Stego:
         extracted_message = (c_ubyte*len(stego_array))()
         s = stc.stc_unhide(len(stego_array), stego, message_len, extracted_message)
 
-        """
-        if len(extracted_message) > message_len:
-            print("ERROR, inconsistent message lenght:", 
+        if len(extracted_message) < message_len:
+            print("WARNING, inconsistent message lenght:", 
                   len(extracted_message), ">", message_len)
-            sys.exit(0)
-        """
+            return bytearray()
 
         # Message bits to bytes
         data = bytearray()

@@ -8,6 +8,7 @@
 #include <fstream>
 #include <iomanip>
 #include <string.h> // due to memcpy
+#include <random>
 
 /*
 #include <boost/random/uniform_int.hpp>       // this is required for Marsene-Twister random number generator
@@ -59,14 +60,17 @@ void randperm( uint n, uint seed, uint* perm ) {
     boost::variate_generator< boost::mt19937, boost::uniform_int< > > *randi = new boost::variate_generator< boost::mt19937,
         boost::uniform_int< > >( *generator, boost::uniform_int< >( 0, INT_MAX ) );
     */
+   
+    std::mt19937 rnd(seed);
 
-    srand(seed);
+    //srand(seed);
     // generate random permutation - this is used to shuffle cover pixels to randomize the effect of different neighboring pixels
     for ( uint i = 0; i < n; i++ )
         perm[i] = i;
     for ( uint i = 0; i < n; i++ ) {
         //uint j = (*randi)() % (n - i);
-        uint j = rand() % (n - i);
+        //uint j = rand() % (n - i);
+        uint j = rnd() % (n - i);
         uint tmp = perm[i];
         perm[i] = perm[i + j];
         perm[i + j] = tmp;
@@ -641,6 +645,7 @@ float stc_ml2_embed( uint cover_length, float* costs, int* stego_values, uint me
 
     try {
         stc_embed_trial( cover_length, p20, message, stc_constraint_height, num_msg_bits[1], perm2, stego2, trial, max_trials, "cost2.txt" );
+
     } catch ( stc_exception& e ) {
         delete[] p10;
         delete[] p20;

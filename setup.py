@@ -12,7 +12,7 @@ m_stc = Extension('hstego_stc_extension',
                              'src/stc_extract_c.cpp',
                              'src/stc_interface.cpp',
                              'src/stc_ml_c.cpp'],
-                  extra_compile_args = ['-std=c++98', '-Wno-narrowing'],
+                  extra_compile_args = ['-std=c++11', '-Wno-narrowing'],
                   )
 
 
