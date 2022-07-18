@@ -41,19 +41,19 @@ the message to hide, a password, and the resulting stego image. The procedure
 can be seen in the following images.
 
 <p float="left">
-   <img src='images/hstego-1H.png' width='100'/>
-   <img src='images/hstego-2H.png' width='100'/>
-   <img src='images/hstego-3H.png' width='100'/>
-   <img src='images/hstego-4H.png' width='100'/>
+   <img src='images/hstego-1H.png' width='200'/>
+   <img src='images/hstego-2H.png' width='200'/>
+   <img src='images/hstego-3H.png' width='200'/>
+   <img src='images/hstego-4H.png' width='200'/>
 </p>
 
 During extraction the procedure is similar. HStego asks for the stego image 
 and for the password.
 
 <p float="left">
-   <img src='images/hstego-1E.png' width='100'/>
-   <img src='images/hstego-2E.png' width='100'/>
-   <img src='images/hstego-3E.png' width='100'/>
+   <img src='images/hstego-1E.png' width='200'/>
+   <img src='images/hstego-2E.png' width='200'/>
+   <img src='images/hstego-3E.png' width='200'/>
 </p>
 
 
