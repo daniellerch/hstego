@@ -59,7 +59,7 @@ and for the password.
 
 ## Command line examples:
 
-HStego is a command line tool. Here are some examples of how to use it.
+HStego can be used from the command line. Here are some examples of how to use it.
 
 
 Example using bitmap images:
