@@ -27,3 +27,19 @@ python.exe .\setup-win.py build
 pyinstaller.exe .\hstego-win.spec
 
 
+-- Mac OX X --
+
+Install "Command line developer tools".
+
+Install Brew:
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+
+
+brew install jpeg
+
+sudo pip3 install pyinstaller
+
+python3 setup.py build
+pyinstaller hstego-linux.spec
+
+
