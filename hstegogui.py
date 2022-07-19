@@ -31,6 +31,12 @@ FONT = ("Helvetica", "11", "normal")
 FONT_B = ("Helvetica", "11", "bold")
 
 
+base = os.path.dirname(__file__)
+if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
+    base = sys._MEIPASS
+
+
+
 class CustomText(scrolledtext.ScrolledText):
     def __init__(self, *args, **kwargs):
         # {{{
@@ -300,10 +306,14 @@ class Wizard:
             content = self.msg_text.get("1.0", END).strip()
         else:
             msg_path = self.msg_entry.get()
-            with open(msg_path, 'r') as f:
+            with open(msg_path, 'rb') as f:
                 content = f.read()
-
-        return len(content.encode())
+    
+        try:
+            return len(content.encode())
+        except:
+            pass
+        return len(content)
         # }}}
 
     def hide(self):
@@ -373,7 +383,7 @@ class Wizard:
             juniw.extract(stego_image_path, password, output_msg_path)
 
 
-        with open(output_msg_path) as f:
+        with open(output_msg_path, "rb") as f:
             content = f.read()
             if len(content) <= 0:
                 messagebox.showerror('Error', 'Message not found, may be the password is wrong')
@@ -429,7 +439,7 @@ class StepScreen:
             wz.key = wz.key[0]+'E'
 
         wz.hide_btn = Button(wz.panel("1H"), command=hide_btn_click)
-        img = Image.open(os.path.join("resources", "hide.png"))
+        img = Image.open(os.path.join(base, "resources", "hide.png"))
         hide_img = ImageTk.PhotoImage(img)
         # keep a reference to ensure it's not garbage collected
         wz.hide_btn.image = hide_img 
@@ -441,7 +451,8 @@ class StepScreen:
         Label(wz.panel("1H"), text='Hide information').place(x=130, y=315)
 
         wz.extract_btn = Button(wz.panel("1H"), command=extract_btn_click)
-        extract_img = ImageTk.PhotoImage(Image.open(os.path.join("resources", "extract.png")))
+        extract_img = ImageTk.PhotoImage(
+                Image.open(os.path.join(base, "resources", "extract.png")))
         wz.extract_btn.image = extract_img 
         wz.extract_btn.config(image=extract_img)
         wz.extract_btn.place(x=320, y=130, width="180", height='180')

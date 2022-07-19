@@ -11,7 +11,7 @@ a = Analysis(
        ('build/lib.linux-x86_64-3.10/hstego_jpeg_toolbox_extension.cpython-310-x86_64-linux-gnu.so', '.'), 
        ('build/lib.linux-x86_64-3.10/hstego_stc_extension.cpython-310-x86_64-linux-gnu.so', '.')
     ],
-    datas=[],
+    datas=[('resources', 'resources')],
     hiddenimports=['PIL._tkinter_finder'],
     hookspath=[],
     hooksconfig={},
@@ -38,7 +38,7 @@ exe = EXE(
     upx=True,
     upx_exclude=[],
     runtime_tmpdir=None,
-    console=True,
+    console=False,
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,
