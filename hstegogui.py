@@ -471,7 +471,7 @@ class StepScreen:
             10, 10, 580, 80
         )
 
-        if sys.platform == "win32":
+        if sys.platform == "win32" or sys.platform == "darwin":
             canvas = Canvas(wz.panel("2H"), width=WIN_W, height=250, 
                             bg="#D9D9D9", bd=0, relief='ridge', highlightthickness=0)
         else:
@@ -685,7 +685,7 @@ class StepScreen:
             10, 10, 580, 80
         )
 
-        if sys.platform == "win32":
+        if sys.platform == "win32" or sys.platform == "darwin":
             canvasE = Canvas(wz.panel("2E"), width=WIN_W, height=250, 
                             bg="#D9D9D9", bd=0, relief='ridge', highlightthickness=0)
         else:

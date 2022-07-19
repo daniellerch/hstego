@@ -36,10 +36,18 @@ Install Brew:
 
 
 brew install jpeg
+cp src/jpeg-9c-win/Include/jpegint.h /usr/local/Cellar/jpeg/9e/include/
 
+sudo pip3 install pynstaller
+sudo pip3 install imageio
+sudo pip3 install numpy
+sudo pip3 install scipy
+sudo pip3 install pycryptodome
 sudo pip3 install pyinstaller
 
+
 python3 setup.py build
-pyinstaller hstego-linux.spec
+/Library/Frameworks/Python.framework/Versions/3.10/bin/pyinstaller hstego-mac.spec
+
 
 

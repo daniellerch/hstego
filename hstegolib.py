@@ -37,6 +37,8 @@ if not jpg_candidates and sys.platform == "linux": # devel mode
     jpg_candidates = glob.glob('build/lib.linux*/'+jpg_pattern)
 if not jpg_candidates and sys.platform == "win32": # devel mode
     jpg_candidates = glob.glob('build/lib.win*/'+jpg_pattern)
+if not jpg_candidates and sys.platform == "darwin": # devel mode
+    jpg_candidates = glob.glob('build/lib.mac*/'+jpg_pattern)
 if not jpg_candidates:
     print("JPEG Toolbox library not found:", base)
     sys.exit(0)
@@ -47,6 +49,8 @@ if not stc_candidates and sys.platform == "linux": # devel mode
     stc_candidates = glob.glob('build/lib.linux*/'+stc_pattern)
 if not stc_candidates and sys.platform == "win32": # devel mode
     stc_candidates = glob.glob('build/lib.win*/'+stc_pattern)
+if not stc_candidates and sys.platform == "darwin": # devel mode
+    stc_candidates = glob.glob('build/lib.mac*/'+stc_pattern)
 if not stc_candidates:
     print("STC library not found:", base)
     sys.exit(0)
