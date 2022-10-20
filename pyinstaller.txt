@@ -4,6 +4,7 @@
 
 sudo pip3 install pyinstaller
 
+cp src/jpeg-9c-win/Include/jpegint.h /$anaconda path$/include
 python3 setup.py build
 pyinstaller hstego-linux.spec
 
