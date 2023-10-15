@@ -1,5 +1,6 @@
 
 
+
 -- LINUX --
 
 sudo pip3 install pyinstaller
@@ -23,8 +24,9 @@ pip install scipy
 pip install pycryptodome
 
 
-python.exe .\setup-win.py build
-pyinstaller.exe .\hstego-win.spec
+python3.exe setup-win.py build
+
+pyinstaller.exe --onefile --noconsole --add-data "resources;resources" --add-binary ".\\build\\lib.win-amd64-3.10\\hstego_jpeg_toolbox_extension.so;." --add-binary ".\\build\\lib.win-amd64-3.10\\hstego_stc_extension.so;." --specpath "." .\hstego.py
 
 
 -- Mac OX X --
