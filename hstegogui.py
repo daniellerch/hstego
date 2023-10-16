@@ -84,7 +84,7 @@ class About(simpledialog.Dialog):
         lnk.bind("<Button-1>", click_www)
         lnk.place(x=100, y=46)
 
-        Label(frame, text='Version: 0.3 (alpha)', font=FONT).place(x=110, y=80)
+        Label(frame, text='Version: 0.4 (alpha)', font=FONT).place(x=110, y=80)
 
 
         Label(frame, text='GitHub:', font=FONT).place(x=150, y=140)

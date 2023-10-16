@@ -18,6 +18,9 @@ from Crypto.Cipher import AES
 from Crypto.Random import get_random_bytes
 from Crypto.Util.Padding import pad, unpad
 
+
+from numba import jit
+
 SPATIAL_EXT = ["png", "pgm", "tif"]
 MAX_PAYLOAD=0.05
 INF = 2**31-1
@@ -419,18 +422,108 @@ class HILL:
 
     # }}}
 
+
+# {{{ Numba code for J-UNIWARD
+A = np.zeros((8,8))
+for i in range(8):
+    for j in range(8):
+        if i==0:
+            A[i][j] = 0.35355339
+        else:
+            A[i][j] = 0.5*np.cos(np.pi*(2*j+1)*i/float(16))
+
+@jit(nopython=True, cache=True)
+def invDCT(m):
+    # {{{
+    return np.transpose(np.dot(np.transpose(np.dot(m,A)),A))
+    # }}}
+
+
+B = np.zeros((8,8))
+for i in range(8):
+    for j in range(8):
+        if j==0:
+            B[i][j] = 0.35355339
+        else:
+            B[i][j] = 0.5*np.cos(np.pi*(2*i+1)*j/float(16))
+
+@jit(nopython=True, cache=True)
+def DCT(m):   
+    # {{{
+    return np.transpose(np.dot(np.transpose(np.dot(m,B)),B))
+    # }}}
+
+
+@jit(nopython=True, cache=True)
+def uncompress(coeffs, quant):
+    # {{{
+    spatial = np.zeros(coeffs.shape)
+    for block_i in range(coeffs.shape[0]//8):
+        for block_j in range(coeffs.shape[1]//8):
+            dct_block = coeffs[block_i*8:block_i*8+8, block_j*8:block_j*8+8]
+            spatial_block = invDCT(dct_block*quant)+128
+            spatial[block_i*8:block_i*8+8, block_j*8:block_j*8+8] = spatial_block
+    return spatial
+    # }}}
+
+@jit(nopython=True, cache=True)
+def compress(spatial, quant):
+    # {{{
+    dct = np.zeros(spatial.shape)
+    for block_i in range(spatial.shape[0]//8):
+        for block_j in range(spatial.shape[1]//8):
+            spatial_block = spatial[block_i*8:block_i*8+8, block_j*8:block_j*8+8]
+            dct_block = DCT(spatial_block-128)/quant
+            dct[block_i*8:block_i*8+8, block_j*8:block_j*8+8] = dct_block
+    return dct
+    # }}}
+
+@jit(nopython=True, cache=True)
+def YCbCr_to_RGB(Y, Cb, Cr):
+    # {{{
+    R = Y + 1.402 * (Cr-128)
+    G = Y - 0.34414 * (Cb-128)  - 0.71414 * (Cr-128) 
+    B = Y + 1.772 * (Cb-128)
+    return np.stack((R, G, B), -1)
+    # }}}
+
+
+@jit(nopython=True, cache=True)
+def cost_fn_fast(coeffs, wavelet_impact_array, RC, pad_size):
+    # {{{
+    k, l = coeffs.shape
+    rho = np.zeros((k, l))
+    tempXi = np.zeros((3, 23, 23))
+    sgm = 2**(-6)
+
+    # Computation of costs
+    for row in range(k):
+        for col in range(l):
+            mod_row = row % 8
+            mod_col = col % 8
+            sub_rows = np.array(list(range(row-mod_row-6+pad_size-1, row-mod_row+16+pad_size)))
+            sub_cols = np.array(list(range(col-mod_col-6+pad_size-1, col-mod_col+16+pad_size)))
+
+            for f_index in range(3):
+                RC_sub = RC[f_index][sub_rows][:,sub_cols]
+                wav_cover_stego_diff = wavelet_impact_array[f_index, mod_row, mod_col]
+                tempXi[f_index] = np.abs(wav_cover_stego_diff) / (np.abs(RC_sub)+sgm)
+
+            rho_temp = tempXi[0] + tempXi[1] + tempXi[2]
+            rho[row, col] = np.sum(rho_temp)
+
+    return rho
+    # }}}
+
+
+
+# }}}
+
 class J_UNIWARD:
     # {{{
 
-    def dct2(self, a):
-        return scipy.fftpack.dct(scipy.fftpack.dct(
-                               a, axis=0, norm='ortho' ), axis=1, norm='ortho')
-        
-    def idct2(self, a):
-        return scipy.fftpack.idct(scipy.fftpack.idct( 
-                              a, axis=0 , norm='ortho'), axis=1 , norm='ortho')
 
-    def cost_fn(self, coef_arrays, quant_tables, spatial):
+    def cost_fn(self, coeffs, spatial, quant):
 
         hpdf = np.array([
             -0.0544158422,  0.3128715909, -0.6756307363,  0.5853546837,  
@@ -447,62 +540,74 @@ class J_UNIWARD:
         F.append(np.outer(hpdf.T, lpdf))
         F.append(np.outer(hpdf.T, hpdf))
 
-
         # Pre-compute impact in spatial domain when a jpeg coefficient is changed by 1
         spatial_impact = {}
         for i in range(8):
             for j in range(8):
                 test_coeffs = np.zeros((8, 8))
                 test_coeffs[i, j] = 1
-                spatial_impact[i, j] = self.idct2(test_coeffs) * quant_tables[i, j]
+                spatial_impact[i, j] = invDCT(test_coeffs) * quant[i, j]
 
+
+        # Pre-compute impact in spatial domain when a jpeg coefficient is changed by 1
         # Pre compute impact on wavelet coefficients when a jpeg coefficient is changed by 1
-        wavelet_impact = {}
+        #wavelet_impact = {}
+        wavelet_impact_array = np.zeros((len(F), 8, 8, 23, 23))
         for f_index in range(len(F)):
             for i in range(8):
                 for j in range(8):
-                    wavelet_impact[f_index, i, j] = scipy.signal.correlate2d(spatial_impact[i, j], F[f_index], mode='full', boundary='fill', fillvalue=0.) # XXX
+                    #wavelet_impact[f_index, i, j] = scipy.signal.correlate2d(spatial_impact[i, j], F[f_index], mode='full', boundary='fill', fillvalue=0.) # XXX
+                    wavelet_impact_array[f_index, i, j, :, :] = scipy.signal.correlate2d(spatial_impact[i, j], F[f_index], mode='full', boundary='fill', fillvalue=0.)
 
+
+
+
+        # Pre-compute impact in spatial domain when a jpeg coefficient is changed by 1
 
         # Create reference cover wavelet coefficients (LH, HL, HH)
         pad_size = 16 # XXX
         spatial_padded = np.pad(spatial, (pad_size, pad_size), 'symmetric')
-
+        #print(spatial_padded.shape)
 
         RC = []
         for i in range(len(F)):
             f = scipy.signal.correlate2d(spatial_padded, F[i], mode='same', boundary='fill')
             RC.append(f)
+        RC = np.array(RC)
 
-        coeffs = coef_arrays
-        k, l = coeffs.shape
-        nzAC = np.count_nonzero(coef_arrays) - np.count_nonzero(coef_arrays[::8, ::8])
-
-        rho = np.zeros((k, l))
-        tempXi = [0.]*3
-        sgm = 2**(-6)
-
-        # Computation of costs
-        for row in range(k):
-            for col in range(l):
-                mod_row = row % 8
-                mod_col = col % 8
-                sub_rows = list(range(row-mod_row-6+pad_size-1, row-mod_row+16+pad_size))
-                sub_cols = list(range(col-mod_col-6+pad_size-1, col-mod_col+16+pad_size))
-
-                for f_index in range(3):
-                    RC_sub = RC[f_index][sub_rows][:,sub_cols]
-                    wav_cover_stego_diff = wavelet_impact[f_index, mod_row, mod_col]
-                    tempXi[f_index] = abs(wav_cover_stego_diff) / (abs(RC_sub)+sgm)
-
-                rho_temp = tempXi[0] + tempXi[1] + tempXi[2]
-                rho[row, col] = np.sum(rho_temp)
-
-
-        rho[np.isnan(rho)] = INF
-        rho[rho>INF] = INF
+        rho = cost_fn_fast(coeffs, wavelet_impact_array, RC, pad_size)
 
         return rho
+
+
+
+    def cost_polarization(self, rho, coeffs, spatial, quant):
+
+        wet_cost = 10**13
+        rho_m1 = rho.copy()
+        rho_p1 = rho.copy()
+
+        m = 0.65
+
+        precover = scipy.signal.wiener(spatial, (3,3)) 
+        coeffs_estim = compress(precover, quant)
+
+        # polarize
+        s = np.sign(coeffs_estim-coeffs)
+        rho_p1[s>0] = m*rho_p1[s>0]
+        rho_m1[s<0] = m*rho_m1[s<0]
+
+        rho_p1[rho_p1>wet_cost] = wet_cost
+        rho_p1[np.isnan(rho_p1)] = wet_cost
+        rho_p1[coeffs>1023] = wet_cost
+
+        rho_m1[rho_m1>wet_cost] = wet_cost
+        rho_m1[np.isnan(rho_m1)] = wet_cost
+        rho_m1[coeffs<-1023] = wet_cost
+
+
+        return rho_p1, rho_m1
+
 
     def embed(self, input_img_path, msg_file_path, password, output_img_path):
 
@@ -544,11 +649,12 @@ class J_UNIWARD:
             if c > 2:
                 quant = jpg["quant_tables"][1]
 
-            cost = self.cost_fn(jpg["coef_arrays"][c], quant, I[:,:,c])
+            cost = self.cost_fn(jpg["coef_arrays"][c], I[:,:,c], quant)
             jpg["coef_arrays"][c] = stego.hide(msg_bits[c], jpg["coef_arrays"][c], 
                                                cost, mx=1016, mn=-1016)
 
         jpeg_save(jpg, output_img_path)
+
 
 
     def extract(self, stego_img_path, password, output_msg_path):
