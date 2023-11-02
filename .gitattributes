@@ -1,3 +1,5 @@
 src/* linguist-vendored
 src/*/* linguist-vendored
 src/*/*/* linguist-vendored
+bin/hstego-0.4-linux.x86_64 filter=lfs diff=lfs merge=lfs -text
+bin/hstego-0.4-win.amd64.exe filter=lfs diff=lfs merge=lfs -text
