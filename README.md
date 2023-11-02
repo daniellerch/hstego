@@ -29,8 +29,8 @@ be used using the
 [command line](#command-line-examples).
 
 Download Links:
-- [Linux x86\_64](https://github.com/daniellerch/hstego/raw/master/bin/hstego-0.3-linux.x86_64)
-- [Windows AMD64](https://github.com/daniellerch/hstego/raw/master/bin/hstego-0.3-win.amd64.exe)
+- [Linux x86\_64](https://github.com/daniellerch/hstego/raw/master/bin/hstego-0.4-linux.x86_64)
+- [Windows AMD64](https://github.com/daniellerch/hstego/raw/master/bin/hstego-0.4-win.amd64.exe)
 
 
 
@@ -90,7 +90,7 @@ hstego.py extract stego.jpg content.txt MyP4ssw0rd101
 You can install HStego with the following commands:
 ```bash 
 sudo pip3 install imageio numpy scipy pycryptodome
-sudo pip3 install git+https://github.com/daniellerch/hstego.git@v0.3
+sudo pip3 install git+https://github.com/daniellerch/hstego.git@v0.4
 ```
 
 Uninstall with:
@@ -115,7 +115,7 @@ Example using bitmap images:
 
 ```python
 import hstegolib
-hill = hstegolib.HILL()
+hill = hstegolib.S_UNIWARD()
 
 # Hide a message
 hill.embed("cover.png", "secret.txt", "MyP4ssw0rd101", "stego.png")
@@ -142,7 +142,7 @@ juniw.extract("stego.png", "MyP4ssw0rd101", "content.txt")
 ## Technical details:
 
 HStego can hide information in bitmap and JPEG images. HStego gets the best 
-place for hiding the data in bitmap images using the [HILL](#acknowledgments) 
+place for hiding the data in bitmap images using the [S-UNIWARD](#acknowledgments) 
 cost function, and for hiding data into JPEG images using the function 
 [J-UNIWARD](#acknowledgments). The final embedding is done using 
 [Syndrome Trellis Codes](#acknowledgments). 
@@ -159,11 +159,20 @@ adverse conditions.
 
 ## Acknowledgments:
 
-HStego implements the J-UNIWARD method for JPEG images and the HILL method for bitmap images. These
-methods are described in the following papers:
+HStego implements the J-UNIWARD with cost polarization for JPEG images and the 
+S-UNIWARD method for bitmap images. 
+
+NOTE: In versions prior to 0.4, HStego used the HILL cost function for the 
+spatial domain and the J-UNIWARD method for JPEG images.
+
+
+These methods are described in the following papers:
+
 
 
 - [Universal Distortion Function for Steganography in an Arbitrary Domain](https://doi.org/10.1186/1687-417X-2014-1) by Vojtěch Holub, Jessica Fridrich and Tomáš Denemark
+
+- [JPEG Steganography With Estimated Side-Information](https://ieeexplore.ieee.org/document/8746719) by Weixiang Li, Kejiang Chen, Weiming Zhang, Hang Zhou, Yaofei Wang and Nenghai Yu.
 
 - [A New Cost Function for Spatial Image Steganography](https://doi.org/10.1109/ICIP.2014.7025854) by Bin Li, Ming Wang, Jiwu Huang and Xiaolong Li.
 
