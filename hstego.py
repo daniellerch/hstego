@@ -6,6 +6,8 @@ import getpass
 import imageio
 import hstegolib
 
+from PIL import Image, ImageTk
+import numpy as np
 
 
 def help():
@@ -26,6 +28,17 @@ def same_extension(path1, path2):
     if ext1!=ext2:
         return False
     return True
+
+def get_cover_capacity(img_path):
+    image_capacity = 0
+
+    if hstegolib.is_ext(img_path, hstegolib.SPATIAL_EXT):
+        I = np.asarray(Image.open(img_path))
+        image_capacity = hstegolib.spatial_capacity(I)
+    else:
+        jpg = hstegolib.jpeg_load(img_path)
+        image_capacity = hstegolib.jpg_capacity(jpg)
+    return image_capacity
 
 
 if __name__ == "__main__":
@@ -66,11 +79,23 @@ if __name__ == "__main__":
         #    print("Error, input and output images should have the same extension")
         #    sys.exit(-1)
 
-        
+ 
+        with open(msg_file_path, 'rb') as f:
+            content = f.read()
+        try:
+            msg_len = len(content.encode())
+        except:
+            msg_len = len(content)
+
+        if msg_len > get_cover_capacity(input_img_path):
+            print('The message is too long for the selected cover')
+            sys.exit(0)
+
+       
         if hstegolib.is_ext(output_img_path, hstegolib.SPATIAL_EXT):
 
-            hill = hstegolib.HILL()
-            hill.embed(input_img_path, msg_file_path, password, output_img_path)
+            suniw = hstegolib.S_UNIWARD()
+            suniw.embed(input_img_path, msg_file_path, password, output_img_path)
 
         elif hstegolib.is_ext(input_img_path, "jpg"):
 
@@ -97,8 +122,8 @@ if __name__ == "__main__":
         
         if hstegolib.is_ext(stego_img_path, hstegolib.SPATIAL_EXT):
 
-            hill = hstegolib.HILL()
-            hill.extract(stego_img_path, password, output_msg_path)
+            suniw = hstegolib.S_UNIWARD()
+            suniw.extract(stego_img_path, password, output_msg_path)
 
         elif hstegolib.is_ext(stego_img_path, "jpg"):
 

@@ -346,9 +346,8 @@ class Wizard:
             return False
 
         if hstegolib.is_ext(cover_image_path, hstegolib.SPATIAL_EXT):
-            hill = hstegolib.HILL()
-            hill.embed(cover_image_path, msg_path, password, stego_image_path)
-            hill.extract(stego_image_path, password, "test.txt")
+            suniw = hstegolib.S_UNIWARD()
+            suniw.embed(cover_image_path, msg_path, password, stego_image_path)
         else:
             juniw = hstegolib.J_UNIWARD()
             juniw.embed(cover_image_path, msg_path, password, stego_image_path)
@@ -376,8 +375,8 @@ class Wizard:
 
 
         if hstegolib.is_ext(stego_image_path, hstegolib.SPATIAL_EXT):
-            hill = hstegolib.HILL()
-            hill.extract(stego_image_path, password, output_msg_path)
+            suniw = hstegolib.S_UNIWARD()
+            suniw.extract(stego_image_path, password, output_msg_path)
         else:
             juniw = hstegolib.J_UNIWARD()
             juniw.extract(stego_image_path, password, output_msg_path)

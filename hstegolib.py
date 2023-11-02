@@ -6,6 +6,7 @@ import glob
 import copy
 import struct
 import base64
+import random
 import imageio
 import hashlib
 
@@ -231,27 +232,31 @@ class Stego:
         return array
 
 
-    def hide_stc(self, cover_array, costs_array, message_bits, mx=255, mn=0):
+    def hide_stc(self, cover_array, costs_array_m1, costs_array_p1, 
+                 message_bits, mx=255, mn=0):
 
         cover = (c_int*(len(cover_array)))()
         for i in range(len(cover_array)):
             cover[i] = int(cover_array[i])
 
         # Prepare costs
-        costs = (c_float*(len(costs_array)*3))()
-        for i in range(len(costs_array)):
+        costs = (c_float*(len(costs_array_m1)*3))()
+        # 0: cost of changing by -1
+        # 1: cost of not changing
+        # 2: cost of changing by +1
+        for i in range(len(costs_array_m1)):
             if cover[i]<=mn:
                 costs[3*i+0] = INF
                 costs[3*i+1] = 0
-                costs[3*i+2] = costs_array[i]
+                costs[3*i+2] = costs_array_p1[i]
             elif cover[i]>=mx:
-                costs[3*i+0] = costs_array[i]
+                costs[3*i+0] = costs_array_m1[i]
                 costs[3*i+1] = 0 
                 costs[3*i+2] = INF
             else:
-                costs[3*i+0] = costs_array[i]
+                costs[3*i+0] = costs_array_m1[i]
                 costs[3*i+1] = 0
-                costs[3*i+2] = costs_array[i]
+                costs[3*i+2] = costs_array_p1[i]
 
 
         m = len(message_bits)
@@ -271,23 +276,40 @@ class Stego:
         return stego_array
 
 
-    def hide(self, message, cover_matrix, cost_matrix, mx=255, mn=0):
+    def hide(self, message, cover_matrix, cost_matrix_m1, cost_matrix_p1,
+             password_seed, mx=255, mn=0):
+        random.seed(password_seed)
+
         message_bits = self.bytes_to_bits(message)
 
         height, width = cover_matrix.shape
         cover_array = cover_matrix.reshape((height*width,)) 
-        costs_array = cost_matrix.reshape((height*width,)) 
+        costs_array_m1 = cost_matrix_m1.reshape((height*width,)) 
+        costs_array_p1 = cost_matrix_p1.reshape((height*width,)) 
 
         # Hide data_len (32 bits) into 64 pixels (0.5 payload)
         data_len = struct.pack("!I", len(message_bits))
         data_len_bits = self.bytes_to_bits(data_len)
 
-        stego_array_1 = self.hide_stc(cover_array[:64], costs_array[:64], data_len_bits, mx, mn)
-        stego_array_2 = self.hide_stc(cover_array[64:], costs_array[64:], message_bits, mx, mn)
+        # Shuffle
+        indices = list(range(len(cover_array)))
+        random.shuffle(indices)
+        cover_array = cover_array[indices]
+        costs_array_m1 = costs_array_m1[indices]
+        costs_array_p1 = costs_array_p1[indices]
+
+        stego_array_1 = self.hide_stc(cover_array[:64], 
+            costs_array_m1[:64], costs_array_p1[:64], data_len_bits, mx, mn)
+        stego_array_2 = self.hide_stc(cover_array[64:], 
+            costs_array_m1[64:], costs_array_p1[64:], message_bits, mx, mn)
         stego_array = np.hstack((stego_array_1, stego_array_2))
 
+
+        # Unshuffle
+        stego_array[indices] = stego_array[list(range(len(cover_array)))]
+
         stego_matrix = stego_array.reshape((height, width))
-        
+      
         return stego_matrix
 
 
@@ -325,10 +347,17 @@ class Stego:
         return data
 
 
-    def unhide(self, stego_matrix):
+    def unhide(self, stego_matrix, password_seed):
+
+        random.seed(password_seed)
 
         height, width = stego_matrix.shape
         stego_array = stego_matrix.reshape((height*width,))
+
+        # Shuffle
+        indices = list(range(len(stego_array)))
+        random.shuffle(indices)
+        stego_array = stego_array[indices]
 
         # Extract a 32-bits message lenght from a 64-pixel array
         data = self.unhide_stc(stego_array[:64], 32)
@@ -339,26 +368,59 @@ class Stego:
 
     # }}}
 
-class HILL:
+class S_UNIWARD:
     # {{{ 
-    def cost_fn(self, I):                                                                
-        HF1 = np.array([                                                             
-            [-1, 2, -1],                                                             
-            [ 2,-4,  2],                                                             
-            [-1, 2, -1]                                                              
-        ])                                                                           
-        H2 = np.ones((3, 3)).astype(np.float)/3**2                                   
-        HW = np.ones((15, 15)).astype(np.float)/15**2                                
-                                                                                     
-        R1 = scipy.signal.convolve2d(I, HF1, mode='same', boundary='symm')
-        W1 = scipy.signal.convolve2d(np.abs(R1), H2, mode='same', boundary='symm')
-        rho=1./(W1+10**(-10))
-        cost = scipy.signal.convolve2d(rho, HW, mode='same', boundary='symm')
+    def cost_fn(self, I):
 
-        cost[np.isnan(cost)] = INF
-        cost[cost>INF] = INF
+        k, l = I.shape[:2]
 
-        return cost     
+        hpdf = np.array([
+            -0.0544158422,  0.3128715909, -0.6756307363,  0.5853546837,  
+             0.0158291053, -0.2840155430, -0.0004724846,  0.1287474266,  
+             0.0173693010, -0.0440882539, -0.0139810279,  0.0087460940,  
+             0.0048703530, -0.0003917404, -0.0006754494, -0.0001174768
+        ])        
+
+        sign = np.array([-1 if i%2 else 1 for i in range(len(hpdf))])
+        lpdf = hpdf[::-1] * sign
+
+        F = []
+        F.append(np.outer(lpdf.T, hpdf))
+        F.append(np.outer(hpdf.T, lpdf))
+        F.append(np.outer(hpdf.T, hpdf))
+
+        sgm = 1
+        pad_size = 16 # XXX
+
+        rho = np.zeros((k, l))
+        for i in range(3):
+            cover_padded = np.pad(I, (pad_size, pad_size), 'symmetric').astype('float32')
+
+            R0 = scipy.signal.convolve2d(cover_padded, F[i], mode="same")
+
+            X = scipy.signal.convolve2d(1./(np.abs(R0)+sgm), np.rot90(np.abs(F[i]), 2), 'same');
+
+            if F[0].shape[0]%2 == 0:
+                X = np.roll(X, 1, axis=0)
+
+            if F[0].shape[1]%2 == 0:
+                X = np.roll(X, 1, axis=1)
+
+            X = X[(X.shape[0]-k)//2:-(X.shape[0]-k)//2, (X.shape[1]-l)//2:-(X.shape[1]-l)//2]
+            rho += X
+
+        rho_m1 = rho.copy()
+        rho_p1 = rho.copy()
+
+        rho_p1[rho_p1>INF] = INF
+        rho_p1[np.isnan(rho_p1)] = INF
+        rho_p1[I==255] = INF
+
+        rho_m1[rho_m1>INF] = INF
+        rho_m1[np.isnan(rho_m1)] = INF
+        rho_m1[I==0] = INF
+
+        return rho_m1, rho_p1 
 
 
     def embed(self, input_img_path, msg_file_path, password, output_img_path):
@@ -375,6 +437,10 @@ class HILL:
 
         cipher = Cipher(password)
         message = cipher.encrypt(msg_file_path)
+
+        # Seed from password
+        password_hash = hashlib.sha256(password.encode()).digest()
+        password_seed = int.from_bytes(password_hash, 'big')
 
         # real capacity, without headers
         m = 1
@@ -394,7 +460,8 @@ class HILL:
             msg_bits = [ message[:l], message[l:2*l], message[2*l:] ]
 
         for c in range(n_channels):
-            I[:,:,c] = stego.hide(msg_bits[c], I[:,:,c], self.cost_fn(I[:,:,c]))
+            costs_m1, costs_p1 = self.cost_fn(I[:,:,c])
+            I[:,:,c] = stego.hide(msg_bits[c], I[:,:,c], costs_m1, costs_p1, password_seed)
 
 
         imageio.imwrite(output_img_path, I)
@@ -412,9 +479,13 @@ class HILL:
         cipher = Cipher(password)
         stego = Stego()
 
+        # Seed from password
+        password_hash = hashlib.sha256(password.encode()).digest()
+        password_seed = int.from_bytes(password_hash, 'big')
+
         ciphertext = []
         for c in range(n_channels):
-            ciphertext += stego.unhide(I[:,:,c])
+            ciphertext += stego.unhide(I[:,:,c], password_seed)
 
         plain = cipher.decrypt(bytes(ciphertext))
         with open(output_msg_path, 'wb') as f:
@@ -583,30 +654,32 @@ class J_UNIWARD:
 
     def cost_polarization(self, rho, coeffs, spatial, quant):
 
-        wet_cost = 10**13
         rho_m1 = rho.copy()
         rho_p1 = rho.copy()
 
         m = 0.65
 
+        print("coeffs shape:", coeffs.shape)
         precover = scipy.signal.wiener(spatial, (3,3)) 
+        print("precover shape:", coeffs.shape)
         coeffs_estim = compress(precover, quant)
+        print("coeffs_estim shape:", coeffs_estim.shape)
 
         # polarize
         s = np.sign(coeffs_estim-coeffs)
         rho_p1[s>0] = m*rho_p1[s>0]
         rho_m1[s<0] = m*rho_m1[s<0]
 
-        rho_p1[rho_p1>wet_cost] = wet_cost
-        rho_p1[np.isnan(rho_p1)] = wet_cost
-        rho_p1[coeffs>1023] = wet_cost
+        rho_p1[rho_p1>INF] = INF
+        rho_p1[np.isnan(rho_p1)] = INF
+        rho_p1[coeffs>1023] = INF
 
-        rho_m1[rho_m1>wet_cost] = wet_cost
-        rho_m1[np.isnan(rho_m1)] = wet_cost
-        rho_m1[coeffs<-1023] = wet_cost
+        rho_m1[rho_m1>INF] = INF
+        rho_m1[np.isnan(rho_m1)] = INF
+        rho_m1[coeffs<-1023] = INF
 
 
-        return rho_p1, rho_m1
+        return rho_m1, rho_p1
 
 
     def embed(self, input_img_path, msg_file_path, password, output_img_path):
@@ -614,8 +687,15 @@ class J_UNIWARD:
         with open(msg_file_path, 'rb') as f:
             data = f.read()
 
-        I = imageio.imread(input_img_path)
+        #I = imageio.imread(input_img_path)
         jpg = jpeg_load(input_img_path)
+
+        Y = uncompress(jpg["coef_arrays"][0], jpg["quant_tables"][0])
+        Cb = uncompress(jpg["coef_arrays"][1], jpg["quant_tables"][1])
+        Cr = uncompress(jpg["coef_arrays"][2], jpg["quant_tables"][1])
+        spatial_YCbCr = (Y, Cb, Cr)
+        I = YCbCr_to_RGB(Y, Cb, Cr)
+
 
         n_channels = 3
         if len(I.shape) == 2:
@@ -624,6 +704,10 @@ class J_UNIWARD:
 
         cipher = Cipher(password)
         message = cipher.encrypt(msg_file_path)
+
+        # Seed from password
+        password_hash = hashlib.sha256(password.encode()).digest()
+        password_seed = int.from_bytes(password_hash, 'big')
 
         # Real capacity, without headers
         capacity = 0
@@ -650,8 +734,11 @@ class J_UNIWARD:
                 quant = jpg["quant_tables"][1]
 
             cost = self.cost_fn(jpg["coef_arrays"][c], I[:,:,c], quant)
+            costs_m1, costs_p1 = self.cost_polarization(
+                          cost, jpg["coef_arrays"][c], spatial_YCbCr[c], quant)
+
             jpg["coef_arrays"][c] = stego.hide(msg_bits[c], jpg["coef_arrays"][c], 
-                                               cost, mx=1016, mn=-1016)
+                          costs_m1, costs_p1, password_seed, mx=1016, mn=-1016)
 
         jpeg_save(jpg, output_img_path)
 
@@ -670,9 +757,13 @@ class J_UNIWARD:
         cipher = Cipher(password)
         stego = Stego()
 
+        # Seed from password
+        password_hash = hashlib.sha256(password.encode()).digest()
+        password_seed = int.from_bytes(password_hash, 'big')
+
         ciphertext = []
         for c in range(n_channels):
-            ciphertext += stego.unhide(jpg["coef_arrays"][c])
+            ciphertext += stego.unhide(jpg["coef_arrays"][c], password_seed)
 
         plain = cipher.decrypt(bytes(ciphertext))
 
