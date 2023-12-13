@@ -144,7 +144,7 @@ juniw.extract("stego.png", "MyP4ssw0rd101", "content.txt")
 HStego can hide information in bitmap and JPEG images. HStego gets the best 
 place for hiding the data in bitmap images using the [S-UNIWARD](#acknowledgments) 
 cost function, and for hiding data into JPEG images using the function 
-[J-UNIWARD](#acknowledgments). The final embedding is done using 
+[J-UNIWARD](#acknowledgments)+[Cost Polarization](#acknowledgments). The final embedding is done using 
 [Syndrome Trellis Codes](#acknowledgments). 
 
 Even using this advanced methods, powerful steganalysis tools based on 
