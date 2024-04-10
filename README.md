@@ -30,8 +30,7 @@ be used using the
 
 Download Links:
 - [Linux x86\_64 v0.5](https://drive.google.com/file/d/1zeUzuEjuVHzfU-KSGsjTlsVQoIL8EkiZ/view?usp=drive_link)
-- [Windows AMD64 v0.5](https://drive.google.com/file/d/1SWpJkck60YGxZrDKxDl6Ril8AciA0kXH/view?usp=drive_link)
-
+- [Windows AMD64 v0.5](https://drive.google.com/file/d/1POqmgByvXZOKiEk6ycSwvmQpnkjG1o9v/view?usp=drive_link)
 
 
 ## GUI examples:
