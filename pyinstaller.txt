@@ -1,0 +1,58 @@
+
+
+
+-- LINUX --
+
+sudo pip3 install pyinstaller
+
+python3 setup.py build
+pyinstaller hstego-linux.spec
+
+
+
+-- WINDOWS --
+
+Install: https://visualstudio.microsoft.com/visual-cpp-build-tools, add C++ Build tools
+
+Library jpeg-9c comes from:
+https://github.com/aeagean/LibjpegForWindows
+
+
+# Install Python from Windows Store and add Scripts to PATH.
+pip install pynstaller
+pip install imageio
+pip install numpy
+pip install scipy
+pip install pycryptodome
+pip install numba
+
+
+python3.exe setup-win.py build
+
+pyinstaller.exe --onefile --noconsole --add-data "resources;resources" --add-binary ".\\build\\lib.win-amd64-cpython-311\\hstego_jpeg_toolbox_extension.so;." --add-binary ".\\build\\lib.win-amd64-cpython-311\\hstego_stc_extension.so;." --specpath "." .\hstego.py
+
+
+-- Mac OX X --
+
+Install "Command line developer tools".
+
+Install Brew:
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+
+
+brew install jpeg
+cp src/jpeg-9c-win/Include/jpegint.h /usr/local/Cellar/jpeg/9e/include/
+
+sudo pip3 install pynstaller
+sudo pip3 install imageio
+sudo pip3 install numpy
+sudo pip3 install scipy
+sudo pip3 install pycryptodome
+sudo pip3 install pyinstaller
+
+
+python3 setup.py build
+/Library/Frameworks/Python.framework/Versions/3.10/bin/pyinstaller hstego-mac.spec
+
+
+
