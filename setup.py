@@ -22,7 +22,7 @@ with open(os.path.join(here, 'README.md'), encoding='utf-8') as f:
         long_description = f.read()
 
 setup(name = 'hstego',
-      version = '0.4',
+      version = '0.5',
       author="Daniel Lerch",
       author_email="dlerch@gmail.com",
       url="https://github.com/daniellerch/hstego",

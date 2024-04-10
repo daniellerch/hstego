@@ -29,8 +29,8 @@ be used using the
 [command line](#command-line-examples).
 
 Download Links:
-- [Linux x86\_64](https://drive.google.com/file/d/106tIP5dC68Z3_kJsa8jyMBSUKJM5u_jP/view?usp=sharing)
-- [Windows AMD64](https://drive.google.com/file/d/1tKpip-G_6my3g5ki0sVyq3ptVk_9eDLv/view?usp=sharing)
+- [Linux x86\_64 v0.5](https://drive.google.com/file/d/1zeUzuEjuVHzfU-KSGsjTlsVQoIL8EkiZ/view?usp=drive_link)
+- [Windows AMD64 v0.5](https://drive.google.com/file/d/1SWpJkck60YGxZrDKxDl6Ril8AciA0kXH/view?usp=drive_link)
 
 
 
