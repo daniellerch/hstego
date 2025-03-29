@@ -328,7 +328,7 @@ class Stego:
         s = stc.stc_unhide(len(stego_array), stego, message_len, extracted_message)
 
         if len(extracted_message) < message_len:
-            print("WARNING, inconsistent message lenght:", 
+            print("WARNING, inconsistent message length:", 
                   len(extracted_message), ">", message_len)
             return bytearray()
 
@@ -364,7 +364,7 @@ class Stego:
         random.shuffle(indices)
         stego_array = stego_array[indices]
 
-        # Extract a 32-bits message lenght from a 64-pixel array
+        # Extract a 32-bits message length from a 64-pixel array
         data = self.unhide_stc(stego_array[:64], 32)
         data_len = struct.unpack_from("!I", data, 0)[0]
         
