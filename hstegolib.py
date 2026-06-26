@@ -31,6 +31,14 @@ SPATIAL_EXT = ["png", "pgm", "tif"]
 MAX_PAYLOAD=0.05
 INF = 2**31-1
 
+# scrypt memory ~= 128 * n * r bytes.
+# 2**18, r=8 => ~256 MiB per password derivation.
+SCRYPT_N = 2**18
+SCRYPT_R = 8
+SCRYPT_P = 1
+SCRYPT_MAXMEM = 512 * 1024 * 1024
+PASSWORD_SEED_SALT = b"HStego password seed"
+
 
 base = os.path.dirname(__file__)
 
@@ -183,7 +191,9 @@ class Cipher:
 
         # use the Scrypt KDF to get a private key from the password
         private_key = hashlib.scrypt(
-            self.password.encode(), salt=salt, n=2**14, r=8, p=1, dklen=32)
+            self.password.encode(), salt=salt,
+            n=SCRYPT_N, r=SCRYPT_R, p=SCRYPT_P,
+            maxmem=SCRYPT_MAXMEM, dklen=32)
 
         cipher = AES.new(private_key, AES.MODE_CBC)
         ciphertext = cipher.encrypt(pad(self.plaintext, AES.block_size))
@@ -207,7 +217,9 @@ class Cipher:
         ciphertext = ciphertext[:mxlen]
 
         private_key = hashlib.scrypt(
-            self.password.encode(), salt=salt, n=2**14, r=8, p=1, dklen=32)
+            self.password.encode(), salt=salt,
+            n=SCRYPT_N, r=SCRYPT_R, p=SCRYPT_P,
+            maxmem=SCRYPT_MAXMEM, dklen=32)
 
         cipher = AES.new(private_key, AES.MODE_CBC, iv=iv)
         decrypted = cipher.decrypt(ciphertext)
@@ -223,6 +235,15 @@ class Cipher:
             print("WARNING: message not found")
             return bytearray()
     # }}}
+
+
+def derive_password_seed(password):
+    password_hash = hashlib.scrypt(
+        password.encode(), salt=PASSWORD_SEED_SALT,
+        n=SCRYPT_N, r=SCRYPT_R, p=SCRYPT_P,
+        maxmem=SCRYPT_MAXMEM, dklen=32)
+    return int.from_bytes(password_hash, 'big')
+
 
 class Stego:
     # {{{
@@ -444,8 +465,7 @@ class S_UNIWARD:
         message = cipher.encrypt(msg_file_path)
 
         # Seed from password
-        password_hash = hashlib.sha256(password.encode()).digest()
-        password_seed = int.from_bytes(password_hash, 'big')
+        password_seed = derive_password_seed(password)
 
         # real capacity, without headers
         m = 1
@@ -487,8 +507,7 @@ class S_UNIWARD:
         stego = Stego()
 
         # Seed from password
-        password_hash = hashlib.sha256(password.encode()).digest()
-        password_seed = int.from_bytes(password_hash, 'big')
+        password_seed = derive_password_seed(password)
 
         ciphertext = []
         for c in range(n_channels):
@@ -725,8 +744,7 @@ class J_UNIWARD:
         message = cipher.encrypt(msg_file_path)
 
         # Seed from password
-        password_hash = hashlib.sha256(password.encode()).digest()
-        password_seed = int.from_bytes(password_hash, 'big')
+        password_seed = derive_password_seed(password)
 
         # Real capacity, without headers
         capacity = 0
@@ -779,8 +797,7 @@ class J_UNIWARD:
         stego = Stego()
 
         # Seed from password
-        password_hash = hashlib.sha256(password.encode()).digest()
-        password_seed = int.from_bytes(password_hash, 'big')
+        password_seed = derive_password_seed(password)
 
         ciphertext = []
         for c in range(n_channels):
