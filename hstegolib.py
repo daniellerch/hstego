@@ -461,7 +461,7 @@ class S_UNIWARD:
         if n_channels == 1:
             msg_bits = [ message ] 
         else:
-            l = len(data)//3
+            l = len(message)//3
             msg_bits = [ message[:l], message[l:2*l], message[2*l:] ]
 
         for c in range(n_channels):
@@ -744,7 +744,7 @@ class J_UNIWARD:
         if n_channels == 1:
             msg_bits = [ message ] 
         else:
-            l = len(data)//3
+            l = len(message)//3
             msg_bits = [ message[:l], message[l:2*l], message[2*l:] ]
 
         for c in range(n_channels):
