@@ -144,19 +144,25 @@ def jpeg_save(data, path, use_blocks=False):
     jpeg.write_file(r, path.encode())
 # }}}
 
+# {{{ jpg_channel_capacity()
+def jpg_channel_capacity(coef_array):
+    """ channel capacity in bytes """
+    nz_coeff = np.count_nonzero(coef_array)
+    capacity = int((nz_coeff*MAX_PAYLOAD)/8)
+    f = capacity // 16
+    capacity = (f-1)*16
+    capacity -= 16+16+4 # data for header
+    if capacity<0:
+        capacity = 0
+    return capacity
+# }}}
+
 # {{{ jpg_capacity()
 def jpg_capacity(jpg):
-    """ channel capacity in bytes """
+    """ image capacity in bytes """
     total_capacity = 0
     for channel in range(len(jpg["coef_arrays"])):
-        nz_coeff = np.count_nonzero(jpg["coef_arrays"][channel])
-        capacity = int((nz_coeff*MAX_PAYLOAD)/8)
-        f = capacity // 16
-        capacity = (f-1)*16
-        capacity -= 16+16+4 # data for header
-        if capacity<0:
-            capacity = 0
-        total_capacity += capacity
+        total_capacity += jpg_channel_capacity(jpg["coef_arrays"][channel])
     return total_capacity
 # }}}
 
@@ -244,6 +250,44 @@ def derive_password_seed(password):
         n=SCRYPT_N, r=SCRYPT_R, p=SCRYPT_P,
         maxmem=SCRYPT_MAXMEM, dklen=32)
     return int.from_bytes(password_hash, 'big')
+
+
+def split_by_capacity(message, capacities):
+    total_capacity = sum(capacities)
+    if total_capacity <= 0:
+        raise ValueError("No usable channel capacity")
+    if len(message) > total_capacity:
+        raise ValueError("Message exceeds channel capacity")
+
+    lengths = [
+        (len(message) * capacity) // total_capacity
+        for capacity in capacities
+    ]
+    remainder = len(message) - sum(lengths)
+
+    fractions = sorted(
+        range(len(capacities)),
+        key=lambda i: ((len(message) * capacities[i]) % total_capacity, capacities[i]),
+        reverse=True,
+    )
+    while remainder > 0:
+        changed = False
+        for i in fractions:
+            if lengths[i] < capacities[i]:
+                lengths[i] += 1
+                remainder -= 1
+                changed = True
+                if remainder == 0:
+                    break
+        if not changed:
+            raise ValueError("Message exceeds channel capacity")
+
+    chunks = []
+    offset = 0
+    for length in lengths:
+        chunks.append(message[offset:offset + length])
+        offset += length
+    return chunks
 
 
 class Stego:
@@ -748,10 +792,11 @@ class J_UNIWARD:
         password_seed = derive_password_seed(password)
 
         # Real capacity, without headers
-        capacity = 0
-        for channel in range(len(jpg["coef_arrays"])):
-            nz_coeff = np.count_nonzero(jpg["coef_arrays"][channel])
-            capacity += int((nz_coeff*MAX_PAYLOAD)/8)
+        channel_capacities = [
+            jpg_channel_capacity(jpg["coef_arrays"][channel])
+            for channel in range(len(jpg["coef_arrays"]))
+        ]
+        capacity = sum(channel_capacities)
 
         if len(message) > capacity:
             print("ERROR, message too long:", len(message), ">", capacity)
@@ -763,8 +808,7 @@ class J_UNIWARD:
         if n_channels == 1:
             msg_bits = [ message ] 
         else:
-            l = len(message)//3
-            msg_bits = [ message[:l], message[l:2*l], message[2*l:] ]
+            msg_bits = split_by_capacity(message, channel_capacities[:n_channels])
 
         for c in range(n_channels):
             quant = jpg["quant_tables"][0]
