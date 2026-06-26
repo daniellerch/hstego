@@ -9,6 +9,7 @@ import base64
 import random
 import imageio
 import hashlib
+import zlib
 import warnings
 
 import scipy.signal
@@ -184,7 +185,7 @@ class Cipher:
 
     def open_file(self, path):
         with open(path, 'rb') as f:
-            self.plaintext = f.read()
+            self.plaintext = zlib.compress(f.read(), level=9)
 
     def aes_encrypt(self):
         salt = get_random_bytes(AES.block_size)
@@ -223,7 +224,7 @@ class Cipher:
 
         cipher = AES.new(private_key, AES.MODE_CBC, iv=iv)
         decrypted = cipher.decrypt(ciphertext)
-        self.decrypted = unpad(decrypted, AES.block_size)
+        self.decrypted = zlib.decompress(unpad(decrypted, AES.block_size))
 
     def decrypt(self, bytes_array):
         """ decrypt """
