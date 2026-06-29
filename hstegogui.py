@@ -37,6 +37,19 @@ if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
     base = sys._MEIPASS
 
 
+def remove_temp_file(tmp):
+    if not tmp:
+        return
+    try:
+        tmp.close()
+    except Exception:
+        pass
+    try:
+        os.unlink(tmp.name)
+    except FileNotFoundError:
+        pass
+
+
 
 class CustomText(scrolledtext.ScrolledText):
     def __init__(self, *args, **kwargs):
@@ -336,26 +349,26 @@ class Wizard:
             msg_path = self.msg_entry.get()
             password = self.passw_hide_entry.get()
             tmp = None
-            if not self.use_msg_file.get():
-                input_msg_content = self.msg_text.get("1.0", END).strip()
-                tmp = tempfile.NamedTemporaryFile(delete=False)
-                tmp.write(input_msg_content.encode())
-                msg_path = tmp.name
-                tmp.close()
+            try:
+                if not self.use_msg_file.get():
+                    input_msg_content = self.msg_text.get("1.0", END).strip()
+                    tmp = tempfile.NamedTemporaryFile(delete=False)
+                    tmp.write(input_msg_content.encode())
+                    msg_path = tmp.name
+                    tmp.close()
 
-            if os.path.getsize(msg_path) <= 8:
-                messagebox.showerror('Error', 'Please, write a longer message')
-                return False
+                if os.path.getsize(msg_path) <= 8:
+                    messagebox.showerror('Error', 'Please, write a longer message')
+                    return False
 
-            if hstegolib.is_ext(cover_image_path, hstegolib.SPATIAL_EXT):
-                suniw = hstegolib.S_UNIWARD()
-                suniw.embed(cover_image_path, msg_path, password, stego_image_path)
-            else:
-                juniw = hstegolib.J_UNIWARD()
-                juniw.embed(cover_image_path, msg_path, password, stego_image_path)
-
-            if tmp:
-                os.unlink(tmp.name)
+                if hstegolib.is_ext(cover_image_path, hstegolib.SPATIAL_EXT):
+                    suniw = hstegolib.S_UNIWARD()
+                    suniw.embed(cover_image_path, msg_path, password, stego_image_path)
+                else:
+                    juniw = hstegolib.J_UNIWARD()
+                    juniw.embed(cover_image_path, msg_path, password, stego_image_path)
+            finally:
+                remove_temp_file(tmp)
 
         except Exception as e:
             messagebox.showerror('Error', str(e))
@@ -377,35 +390,34 @@ class Wizard:
             if self.dest_msg.get() == "FILE":
                 output_msg_path = self.output_msg_path
             else:
-                input_msg_content = self.msg_text.get("1.0", END).strip()
                 tmp = tempfile.NamedTemporaryFile(delete=False)
-                tmp.write(input_msg_content.encode())
                 output_msg_path = tmp.name
-
-
-            if hstegolib.is_ext(stego_image_path, hstegolib.SPATIAL_EXT):
-                suniw = hstegolib.S_UNIWARD()
-                suniw.extract(stego_image_path, password, output_msg_path)
-            else:
-                juniw = hstegolib.J_UNIWARD()
-                juniw.extract(stego_image_path, password, output_msg_path)
-
-
-            with open(output_msg_path, "rb") as f:
-                content = f.read()
-                if len(content) <= 0:
-                    messagebox.showerror('Error', 'Message not found, may be the password is wrong')
-                    return False
-
-                if self.dest_msg.get() == "SCREEN":
-                    self.msg_output_text["state"] = 'normal'
-                    self.msg_output_text.delete("1.0", END)
-                    self.msg_output_text.insert("1.0", content)
-                    self.msg_output_text["state"] = 'disabled'
-
-            if tmp:
                 tmp.close()
-                os.unlink(tmp.name)
+
+
+            try:
+                if hstegolib.is_ext(stego_image_path, hstegolib.SPATIAL_EXT):
+                    suniw = hstegolib.S_UNIWARD()
+                    suniw.extract(stego_image_path, password, output_msg_path)
+                else:
+                    juniw = hstegolib.J_UNIWARD()
+                    juniw.extract(stego_image_path, password, output_msg_path)
+
+
+                with open(output_msg_path, "rb") as f:
+                    content = f.read()
+                    if len(content) <= 0:
+                        messagebox.showerror('Error', 'Message not found, may be the password is wrong')
+                        return False
+
+                    if self.dest_msg.get() == "SCREEN":
+                        self.msg_output_text["state"] = 'normal'
+                        self.msg_output_text.delete("1.0", END)
+                        self.msg_output_text.insert("1.0", content)
+                        self.msg_output_text["state"] = 'disabled'
+
+            finally:
+                remove_temp_file(tmp)
         
         except Exception as e:
             messagebox.showerror('Error', str(e))
@@ -905,6 +917,4 @@ def run(window):
     ss.create_step_3E_screen()
 
     window.mainloop()
-
-
 
