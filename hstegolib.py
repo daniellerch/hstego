@@ -161,13 +161,23 @@ def jpg_channel_capacity(coef_array):
     return capacity
 # }}}
 
+# {{{ effective_payload_capacities()
+def effective_payload_capacities(channel_capacities):
+    """Channel payload capacities after reserving the global header."""
+    capacities = list(channel_capacities)
+    if capacities:
+        capacities[0] = max(0, capacities[0] - HEADER_SIZE)
+    return capacities
+# }}}
+
 # {{{ jpg_capacity()
 def jpg_capacity(jpg):
     """ image capacity in bytes """
-    total_capacity = 0
-    for channel in range(len(jpg["coef_arrays"])):
-        total_capacity += jpg_channel_capacity(jpg["coef_arrays"][channel])
-    return total_capacity
+    channel_capacities = [
+        jpg_channel_capacity(jpg["coef_arrays"][channel])
+        for channel in range(len(jpg["coef_arrays"]))
+    ]
+    return sum(effective_payload_capacities(channel_capacities))
 # }}}
 
 # {{{ spatial_channel_capacity()
@@ -189,12 +199,13 @@ def spatial_channel_capacity(channel):
 # {{{ spatial_capacity()
 def spatial_capacity(I):
     if len(I.shape) == 2:
-        return spatial_channel_capacity(I)
-
-    total_capacity = 0
-    for channel in range(I.shape[2]):
-        total_capacity += spatial_channel_capacity(I[:, :, channel])
-    return total_capacity
+        channel_capacities = [spatial_channel_capacity(I)]
+    else:
+        channel_capacities = [
+            spatial_channel_capacity(I[:, :, channel])
+            for channel in range(I.shape[2])
+        ]
+    return sum(effective_payload_capacities(channel_capacities))
 # }}} 
 
 
@@ -689,8 +700,7 @@ class S_UNIWARD:
             spatial_channel_capacity(I[:, :, channel])
             for channel in range(n_channels)
         ]
-        effective_capacities = channel_capacities.copy()
-        effective_capacities[0] = max(0, effective_capacities[0] - HEADER_SIZE)
+        effective_capacities = effective_payload_capacities(channel_capacities)
         capacity = sum(effective_capacities)
         if len(message) > capacity:
             print("ERROR, message too long:", len(message), ">", capacity)
@@ -992,8 +1002,7 @@ class J_UNIWARD:
             jpg_channel_capacity(jpg["coef_arrays"][channel])
             for channel in range(n_channels)
         ]
-        effective_capacities = channel_capacities.copy()
-        effective_capacities[0] = max(0, effective_capacities[0] - HEADER_SIZE)
+        effective_capacities = effective_payload_capacities(channel_capacities)
         capacity = sum(effective_capacities)
 
         if len(message) > capacity:
