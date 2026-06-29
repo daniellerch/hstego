@@ -38,6 +38,11 @@ SCRYPT_R = 8
 SCRYPT_P = 1
 SCRYPT_MAXMEM = 512 * 1024 * 1024
 PASSWORD_SEED_SALT = b"HStego password seed"
+HEADER_KEY_SALT = b"HStego header key v2"
+HEADER_MAGIC = b"HS2\x00"
+HEADER_PLAINTEXT_SIZE = 8
+HEADER_SIZE = AES.block_size + AES.block_size + HEADER_PLAINTEXT_SIZE
+HEADER_COVER_LEN = HEADER_SIZE * 8 * 2
 
 
 base = os.path.dirname(__file__)
@@ -165,10 +170,10 @@ def jpg_capacity(jpg):
     return total_capacity
 # }}}
 
-# {{{ spatial_capacity()
-def spatial_capacity(I):
+# {{{ spatial_channel_capacity()
+def spatial_channel_capacity(channel):
     m = 1
-    for i in I.shape:
+    for i in channel.shape:
         m *= i
 
     capacity = int((m*MAX_PAYLOAD)/8)
@@ -179,6 +184,17 @@ def spatial_capacity(I):
         capacity = 0
 
     return capacity
+# }}}
+
+# {{{ spatial_capacity()
+def spatial_capacity(I):
+    if len(I.shape) == 2:
+        return spatial_channel_capacity(I)
+
+    total_capacity = 0
+    for channel in range(I.shape[2]):
+        total_capacity += spatial_channel_capacity(I[:, :, channel])
+    return total_capacity
 # }}} 
 
 
@@ -248,22 +264,52 @@ def derive_password_seed(password):
     return int.from_bytes(password_hash, 'big')
 
 
-def split_by_capacity(message, capacities):
+def derive_header_key(password):
+    return hashlib.scrypt(
+        password.encode(), salt=HEADER_KEY_SALT,
+        n=SCRYPT_N, r=SCRYPT_R, p=SCRYPT_P,
+        maxmem=SCRYPT_MAXMEM, dklen=32)
+
+
+def encrypt_header(password, payload_len):
+    key = derive_header_key(password)
+    nonce = get_random_bytes(AES.block_size)
+    cipher = AES.new(key, AES.MODE_EAX, nonce=nonce)
+    plaintext = struct.pack("!4sI", HEADER_MAGIC, payload_len)
+    ciphertext, tag = cipher.encrypt_and_digest(plaintext)
+    return nonce + tag + ciphertext
+
+
+def decrypt_header(password, header):
+    if len(header) != HEADER_SIZE:
+        raise ValueError("Invalid header size")
+    nonce = header[:AES.block_size]
+    tag = header[AES.block_size:AES.block_size*2]
+    ciphertext = header[AES.block_size*2:]
+    cipher = AES.new(derive_header_key(password), AES.MODE_EAX, nonce=nonce)
+    plaintext = cipher.decrypt_and_verify(ciphertext, tag)
+    magic, payload_len = struct.unpack("!4sI", plaintext)
+    if magic != HEADER_MAGIC:
+        raise ValueError("Invalid header")
+    return payload_len
+
+
+def split_lengths_by_capacity(total_len, capacities):
     total_capacity = sum(capacities)
     if total_capacity <= 0:
         raise ValueError("No usable channel capacity")
-    if len(message) > total_capacity:
+    if total_len > total_capacity:
         raise ValueError("Message exceeds channel capacity")
 
     lengths = [
-        (len(message) * capacity) // total_capacity
+        (total_len * capacity) // total_capacity
         for capacity in capacities
     ]
-    remainder = len(message) - sum(lengths)
+    remainder = total_len - sum(lengths)
 
     fractions = sorted(
         range(len(capacities)),
-        key=lambda i: ((len(message) * capacities[i]) % total_capacity, capacities[i]),
+        key=lambda i: ((total_len * capacities[i]) % total_capacity, capacities[i]),
         reverse=True,
     )
     while remainder > 0:
@@ -277,7 +323,11 @@ def split_by_capacity(message, capacities):
                     break
         if not changed:
             raise ValueError("Message exceeds channel capacity")
+    return lengths
 
+
+def split_by_capacity(message, capacities):
+    lengths = split_lengths_by_capacity(len(message), capacities)
     chunks = []
     offset = 0
     for length in lengths:
@@ -378,6 +428,120 @@ class Stego:
         stego_matrix = stego_array.reshape((height, width))
       
         return stego_matrix
+
+
+    def hide_raw(self, message, cover_matrix, cost_matrix_m1, cost_matrix_p1,
+                 password_seed, reserved_prefix=0, mx=255, mn=0):
+        random.seed(password_seed)
+
+        message_bits = self.bytes_to_bits(message)
+        height, width = cover_matrix.shape
+        cover_array = cover_matrix.reshape((height*width,))
+        costs_array_m1 = cost_matrix_m1.reshape((height*width,))
+        costs_array_p1 = cost_matrix_p1.reshape((height*width,))
+
+        if reserved_prefix < 0 or reserved_prefix > len(cover_array):
+            raise ValueError("Invalid reserved prefix")
+        if len(message_bits) > len(cover_array) - reserved_prefix:
+            raise ValueError("Message exceeds channel capacity")
+
+        indices = list(range(len(cover_array)))
+        random.shuffle(indices)
+        cover_array = cover_array[indices]
+        costs_array_m1 = costs_array_m1[indices]
+        costs_array_p1 = costs_array_p1[indices]
+
+        if len(message_bits) == 0:
+            stego_array = cover_array.copy()
+        else:
+            prefix = cover_array[:reserved_prefix]
+            stego_payload = self.hide_stc(
+                cover_array[reserved_prefix:],
+                costs_array_m1[reserved_prefix:],
+                costs_array_p1[reserved_prefix:],
+                message_bits, mx, mn)
+            stego_array = np.hstack((prefix, stego_payload))
+
+        stego_array[indices] = stego_array[list(range(len(cover_array)))]
+        return stego_array.reshape((height, width))
+
+
+    def hide_header_and_raw(self, header, message, cover_matrix,
+                            cost_matrix_m1, cost_matrix_p1,
+                            password_seed, mx=255, mn=0):
+        random.seed(password_seed)
+
+        header_bits = self.bytes_to_bits(header)
+        message_bits = self.bytes_to_bits(message)
+        height, width = cover_matrix.shape
+        cover_array = cover_matrix.reshape((height*width,))
+        costs_array_m1 = cost_matrix_m1.reshape((height*width,))
+        costs_array_p1 = cost_matrix_p1.reshape((height*width,))
+
+        if len(header) != HEADER_SIZE:
+            raise ValueError("Invalid header size")
+        if HEADER_COVER_LEN > len(cover_array):
+            raise ValueError("No usable header capacity")
+        if len(message_bits) > len(cover_array) - HEADER_COVER_LEN:
+            raise ValueError("Message exceeds channel capacity")
+
+        indices = list(range(len(cover_array)))
+        random.shuffle(indices)
+        cover_array = cover_array[indices]
+        costs_array_m1 = costs_array_m1[indices]
+        costs_array_p1 = costs_array_p1[indices]
+
+        stego_header = self.hide_stc(
+            cover_array[:HEADER_COVER_LEN],
+            costs_array_m1[:HEADER_COVER_LEN],
+            costs_array_p1[:HEADER_COVER_LEN],
+            header_bits, mx, mn)
+
+        if len(message_bits) == 0:
+            stego_payload = cover_array[HEADER_COVER_LEN:].copy()
+        else:
+            stego_payload = self.hide_stc(
+                cover_array[HEADER_COVER_LEN:],
+                costs_array_m1[HEADER_COVER_LEN:],
+                costs_array_p1[HEADER_COVER_LEN:],
+                message_bits, mx, mn)
+
+        stego_array = np.hstack((stego_header, stego_payload))
+        stego_array[indices] = stego_array[list(range(len(cover_array)))]
+        return stego_array.reshape((height, width))
+
+
+    def unhide_raw(self, stego_matrix, password_seed, byte_len,
+                   reserved_prefix=0):
+        random.seed(password_seed)
+        height, width = stego_matrix.shape
+        stego_array = stego_matrix.reshape((height*width,))
+
+        if byte_len < 0:
+            return bytearray()
+        if reserved_prefix < 0 or reserved_prefix > len(stego_array):
+            return bytearray()
+        if byte_len * 8 > len(stego_array) - reserved_prefix:
+            return bytearray()
+
+        indices = list(range(len(stego_array)))
+        random.shuffle(indices)
+        stego_array = stego_array[indices]
+        return self.unhide_stc(stego_array[reserved_prefix:], byte_len * 8)
+
+
+    def unhide_header(self, stego_matrix, password_seed):
+        random.seed(password_seed)
+        height, width = stego_matrix.shape
+        stego_array = stego_matrix.reshape((height*width,))
+
+        if HEADER_COVER_LEN > len(stego_array):
+            return bytearray()
+
+        indices = list(range(len(stego_array)))
+        random.shuffle(indices)
+        stego_array = stego_array[indices]
+        return self.unhide_stc(stego_array[:HEADER_COVER_LEN], HEADER_SIZE * 8)
 
 
     def unhide_stc(self, stego_array, message_len):
@@ -507,9 +671,6 @@ class S_UNIWARD:
 
     def embed(self, input_img_path, msg_file_path, password, output_img_path):
 
-        with open(msg_file_path, 'rb') as f:
-            data = f.read()
-
         I = imageio.imread(input_img_path)
         
         n_channels = 3
@@ -519,30 +680,35 @@ class S_UNIWARD:
 
         cipher = Cipher(password)
         message = cipher.encrypt(msg_file_path)
+        header = encrypt_header(password, len(message))
 
         # Seed from password
         password_seed = derive_password_seed(password)
 
-        # real capacity, without headers
-        m = 1
-        for i in I.shape:
-            m *= i
-        capacity = int((m*MAX_PAYLOAD)/8)
+        channel_capacities = [
+            spatial_channel_capacity(I[:, :, channel])
+            for channel in range(n_channels)
+        ]
+        effective_capacities = channel_capacities.copy()
+        effective_capacities[0] = max(0, effective_capacities[0] - HEADER_SIZE)
+        capacity = sum(effective_capacities)
         if len(message) > capacity:
             print("ERROR, message too long:", len(message), ">", capacity)
             sys.exit(0)
 
         stego = Stego()
-
-        if n_channels == 1:
-            msg_bits = [ message ] 
-        else:
-            l = len(message)//3
-            msg_bits = [ message[:l], message[l:2*l], message[2*l:] ]
+        msg_bits = split_by_capacity(message, effective_capacities)
 
         for c in range(n_channels):
             costs_m1, costs_p1 = self.cost_fn(I[:,:,c])
-            I[:,:,c] = stego.hide(msg_bits[c], I[:,:,c], costs_m1, costs_p1, password_seed)
+            if c == 0:
+                I[:,:,c] = stego.hide_header_and_raw(
+                    header, msg_bits[c], I[:,:,c], costs_m1, costs_p1,
+                    password_seed)
+            else:
+                I[:,:,c] = stego.hide_raw(
+                    msg_bits[c], I[:,:,c], costs_m1, costs_p1,
+                    password_seed)
 
         if n_channels==1:
             imageio.imwrite(output_img_path, I[:,:,0])
@@ -565,11 +731,32 @@ class S_UNIWARD:
         # Seed from password
         password_seed = derive_password_seed(password)
 
-        ciphertext = []
-        for c in range(n_channels):
-            ciphertext += stego.unhide(I[:,:,c], password_seed)
+        try:
+            header = stego.unhide_header(I[:, :, 0], password_seed)
+            payload_len = decrypt_header(password, header)
+            channel_capacities = [
+                spatial_channel_capacity(I[:, :, channel])
+                for channel in range(n_channels)
+            ]
+            effective_capacities = channel_capacities.copy()
+            effective_capacities[0] = max(0, effective_capacities[0] - HEADER_SIZE)
+            chunk_lengths = split_lengths_by_capacity(
+                payload_len, effective_capacities)
 
-        plain = cipher.decrypt(bytes(ciphertext))
+            ciphertext = bytearray()
+            for c in range(n_channels):
+                if c == 0:
+                    ciphertext += stego.unhide_raw(
+                        I[:, :, c], password_seed, chunk_lengths[c],
+                        reserved_prefix=HEADER_COVER_LEN)
+                else:
+                    ciphertext += stego.unhide_raw(
+                        I[:, :, c], password_seed, chunk_lengths[c])
+            plain = cipher.decrypt(bytes(ciphertext))
+        except Exception:
+            print("WARNING: message not found")
+            plain = bytearray()
+
         with open(output_msg_path, 'wb') as f:
             f.write(plain)
 
@@ -778,16 +965,13 @@ class J_UNIWARD:
 
     def embed(self, input_img_path, msg_file_path, password, output_img_path):
 
-        with open(msg_file_path, 'rb') as f:
-            data = f.read()
-
         #I = imageio.imread(input_img_path)
         jpg = jpeg_load(input_img_path)
         if jpg["jpeg_components"] == 1:
             n_channels = 1
             I = uncompress(jpg["coef_arrays"][0], jpg["quant_tables"][0])
             I = I[..., np.newaxis]
-            spatial_uncompress = I
+            spatial_uncompress = (I[:, :, 0],)
         else:
             n_channels = 3
             Y = uncompress(jpg["coef_arrays"][0], jpg["quant_tables"][0])
@@ -798,6 +982,7 @@ class J_UNIWARD:
 
         cipher = Cipher(password)
         message = cipher.encrypt(msg_file_path)
+        header = encrypt_header(password, len(message))
 
         # Seed from password
         password_seed = derive_password_seed(password)
@@ -805,9 +990,11 @@ class J_UNIWARD:
         # Real capacity, without headers
         channel_capacities = [
             jpg_channel_capacity(jpg["coef_arrays"][channel])
-            for channel in range(len(jpg["coef_arrays"]))
+            for channel in range(n_channels)
         ]
-        capacity = sum(channel_capacities)
+        effective_capacities = channel_capacities.copy()
+        effective_capacities[0] = max(0, effective_capacities[0] - HEADER_SIZE)
+        capacity = sum(effective_capacities)
 
         if len(message) > capacity:
             print("ERROR, message too long:", len(message), ">", capacity)
@@ -815,16 +1002,12 @@ class J_UNIWARD:
 
 
         stego = Stego()
-
-        if n_channels == 1:
-            msg_bits = [ message ] 
-        else:
-            msg_bits = split_by_capacity(message, channel_capacities[:n_channels])
+        msg_bits = split_by_capacity(message, effective_capacities)
 
         for c in range(n_channels):
             quant = jpg["quant_tables"][0]
 
-            if c > 2:
+            if c > 0:
                 quant = jpg["quant_tables"][1]
 
             cost = self.cost_fn(jpg["coef_arrays"][c], I[:,:,c], quant)
@@ -832,8 +1015,16 @@ class J_UNIWARD:
                           cost, jpg["coef_arrays"][c], 
                           spatial_uncompress[c], quant)
 
-            jpg["coef_arrays"][c] = stego.hide(msg_bits[c], jpg["coef_arrays"][c], 
-                          costs_m1, costs_p1, password_seed, mx=1016, mn=-1016)
+            if c == 0:
+                jpg["coef_arrays"][c] = stego.hide_header_and_raw(
+                          header, msg_bits[c], jpg["coef_arrays"][c],
+                          costs_m1, costs_p1, password_seed,
+                          mx=1016, mn=-1016)
+            else:
+                jpg["coef_arrays"][c] = stego.hide_raw(
+                          msg_bits[c], jpg["coef_arrays"][c],
+                          costs_m1, costs_p1, password_seed,
+                          mx=1016, mn=-1016)
 
         jpeg_save(jpg, output_img_path)
 
@@ -855,11 +1046,31 @@ class J_UNIWARD:
         # Seed from password
         password_seed = derive_password_seed(password)
 
-        ciphertext = []
-        for c in range(n_channels):
-            ciphertext += stego.unhide(jpg["coef_arrays"][c], password_seed)
+        try:
+            header = stego.unhide_header(jpg["coef_arrays"][0], password_seed)
+            payload_len = decrypt_header(password, header)
+            channel_capacities = [
+                jpg_channel_capacity(jpg["coef_arrays"][channel])
+                for channel in range(n_channels)
+            ]
+            effective_capacities = channel_capacities.copy()
+            effective_capacities[0] = max(0, effective_capacities[0] - HEADER_SIZE)
+            chunk_lengths = split_lengths_by_capacity(
+                payload_len, effective_capacities)
 
-        plain = cipher.decrypt(bytes(ciphertext))
+            ciphertext = bytearray()
+            for c in range(n_channels):
+                if c == 0:
+                    ciphertext += stego.unhide_raw(
+                        jpg["coef_arrays"][c], password_seed,
+                        chunk_lengths[c], reserved_prefix=HEADER_COVER_LEN)
+                else:
+                    ciphertext += stego.unhide_raw(
+                        jpg["coef_arrays"][c], password_seed, chunk_lengths[c])
+            plain = cipher.decrypt(bytes(ciphertext))
+        except Exception:
+            print("WARNING: message not found")
+            plain = bytearray()
 
         f = open(output_msg_path, 'wb')
         f.write(plain)
