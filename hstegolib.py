@@ -44,6 +44,9 @@ HEADER_MAGIC = b"HS2\x00"
 HEADER_PLAINTEXT_SIZE = 8
 HEADER_SIZE = AES.block_size + AES.block_size + HEADER_PLAINTEXT_SIZE
 HEADER_COVER_LEN = HEADER_SIZE * 8 * 2
+CIPHER_MAGIC = b"HC1\x00"
+CIPHER_HEADER_SIZE = 12
+MAX_DECOMPRESSED_SIZE = 64 * 1024 * 1024
 
 
 def _module_base_dir():
@@ -232,9 +235,32 @@ class Cipher:
     def __init__(self, password):
         self.password = password
 
+    def pack_plaintext(self, data):
+        if len(data) > MAX_DECOMPRESSED_SIZE:
+            raise ValueError("Message exceeds maximum size")
+        compressed = zlib.compress(data, level=9)
+        return CIPHER_MAGIC + struct.pack("!Q", len(data)) + compressed
+
+    def unpack_plaintext(self, data):
+        if len(data) < CIPHER_HEADER_SIZE:
+            raise ValueError("Invalid payload")
+        magic = data[:4]
+        plaintext_size = struct.unpack("!Q", data[4:CIPHER_HEADER_SIZE])[0]
+        if magic != CIPHER_MAGIC:
+            raise ValueError("Invalid payload")
+        if plaintext_size > MAX_DECOMPRESSED_SIZE:
+            raise ValueError("Message exceeds maximum size")
+
+        decompressor = zlib.decompressobj()
+        plaintext = decompressor.decompress(
+            data[CIPHER_HEADER_SIZE:], plaintext_size + 1)
+        if len(plaintext) != plaintext_size or not decompressor.eof:
+            raise ValueError("Invalid compressed payload")
+        return plaintext
+
     def open_file(self, path):
         with open(path, 'rb') as f:
-            self.plaintext = zlib.compress(f.read(), level=9)
+            self.plaintext = self.pack_plaintext(f.read())
 
     def aes_encrypt(self):
         salt = get_random_bytes(AES.block_size)
@@ -270,7 +296,7 @@ class Cipher:
 
         cipher = AES.new(private_key, AES.MODE_EAX, nonce=nonce)
         decrypted = cipher.decrypt_and_verify(ciphertext, tag)
-        self.decrypted = zlib.decompress(decrypted)
+        self.decrypted = self.unpack_plaintext(decrypted)
 
     def decrypt(self, bytes_array):
         """ decrypt """
@@ -1103,5 +1129,4 @@ class J_UNIWARD:
         f.close()
         
     # }}}
-
 

@@ -15,8 +15,12 @@ def data_for(size):
 
 
 def payload_len(data):
-    # Cipher payload length is compressed data plus salt, nonce and tag.
-    return len(zlib.compress(data, level=9)) + 3 * hstegolib.AES.block_size
+    # Cipher payload length is packed compressed data plus salt, nonce and tag.
+    return (
+        hstegolib.CIPHER_HEADER_SIZE
+        + len(zlib.compress(data, level=9))
+        + 3 * hstegolib.AES.block_size
+    )
 
 
 def main():
