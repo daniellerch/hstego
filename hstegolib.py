@@ -20,7 +20,6 @@ import numpy as np
 from ctypes import *
 from Crypto.Cipher import AES
 from Crypto.Random import get_random_bytes
-from Crypto.Util.Padding import pad, unpad
 
 
 from numba import jit
@@ -202,11 +201,11 @@ class Cipher:
             n=SCRYPT_N, r=SCRYPT_R, p=SCRYPT_P,
             maxmem=SCRYPT_MAXMEM, dklen=32)
 
-        cipher = AES.new(private_key, AES.MODE_CBC)
-        ciphertext = cipher.encrypt(pad(self.plaintext, AES.block_size))
+        cipher = AES.new(private_key, AES.MODE_EAX)
+        ciphertext, tag = cipher.encrypt_and_digest(self.plaintext)
 
-        # Ciphertext with a 16+16 header 
-        self.ciphertext = salt + cipher.iv + ciphertext
+        # Ciphertext with salt + nonce + authentication tag.
+        self.ciphertext = salt + cipher.nonce + tag + ciphertext
 
     def encrypt(self, input_path):
         """ encrypt file content """
@@ -216,21 +215,18 @@ class Cipher:
   
     def aes_decrypt(self):
         salt = self.ciphertext[:AES.block_size]
-        iv = self.ciphertext[AES.block_size:AES.block_size*2]
-        ciphertext = self.ciphertext[AES.block_size*2:]
-
-        # Fix padding
-        mxlen = len(ciphertext)-(len(ciphertext)%AES.block_size)
-        ciphertext = ciphertext[:mxlen]
+        nonce = self.ciphertext[AES.block_size:AES.block_size*2]
+        tag = self.ciphertext[AES.block_size*2:AES.block_size*3]
+        ciphertext = self.ciphertext[AES.block_size*3:]
 
         private_key = hashlib.scrypt(
             self.password.encode(), salt=salt,
             n=SCRYPT_N, r=SCRYPT_R, p=SCRYPT_P,
             maxmem=SCRYPT_MAXMEM, dklen=32)
 
-        cipher = AES.new(private_key, AES.MODE_CBC, iv=iv)
-        decrypted = cipher.decrypt(ciphertext)
-        self.decrypted = zlib.decompress(unpad(decrypted, AES.block_size))
+        cipher = AES.new(private_key, AES.MODE_EAX, nonce=nonce)
+        decrypted = cipher.decrypt_and_verify(ciphertext, tag)
+        self.decrypted = zlib.decompress(decrypted)
 
     def decrypt(self, bytes_array):
         """ decrypt """
