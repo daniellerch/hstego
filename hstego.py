@@ -31,6 +31,7 @@ def same_extension(path1, path2):
 
 def get_cover_capacity(img_path):
     image_capacity = 0
+    hstegolib.validate_image_resource(img_path)
 
     if hstegolib.is_ext(img_path, hstegolib.SPATIAL_EXT):
         I = np.asarray(Image.open(img_path))
@@ -149,6 +150,7 @@ if __name__ == "__main__":
 
         img_path = sys.argv[2]
         raw_output = len(sys.argv) == 4 and sys.argv[3] == "--raw"
+        hstegolib.validate_image_resource(img_path)
 
         if hstegolib.is_ext(img_path, hstegolib.SPATIAL_EXT):
             I = imageio.imread(img_path)
@@ -172,7 +174,6 @@ if __name__ == "__main__":
 
     else:
         help()
-
 
 
 

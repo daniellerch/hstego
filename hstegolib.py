@@ -18,6 +18,7 @@ import scipy.fftpack
 import scipy.ndimage
 import numpy as np
 
+from PIL import Image
 from ctypes import *
 from Crypto.Cipher import AES
 from Crypto.Random import get_random_bytes
@@ -47,6 +48,11 @@ HEADER_COVER_LEN = HEADER_SIZE * 8 * 2
 CIPHER_MAGIC = b"HC1\x00"
 CIPHER_HEADER_SIZE = 12
 MAX_DECOMPRESSED_SIZE = 64 * 1024 * 1024
+MAX_IMAGE_FILE_SIZE = 100 * 1024 * 1024
+MAX_IMAGE_PIXELS = 50_000_000
+
+Image.MAX_IMAGE_PIXELS = MAX_IMAGE_PIXELS
+warnings.simplefilter('error', Image.DecompressionBombWarning)
 
 
 def _module_base_dir():
@@ -106,12 +112,32 @@ def is_ext(path, extensions):
     return False
 # }}}
 
+# {{{ validate_image_resource()
+def validate_image_resource(path):
+    if not os.path.isfile(path):
+        raise FileNotFoundError(path)
+
+    file_size = os.path.getsize(path)
+    if file_size > MAX_IMAGE_FILE_SIZE:
+        raise ValueError(
+            f"Image file too large: {file_size} > {MAX_IMAGE_FILE_SIZE}")
+
+    with Image.open(path) as img:
+        width, height = img.size
+
+    pixels = width * height
+    if pixels > MAX_IMAGE_PIXELS:
+        raise ValueError(
+            f"Image dimensions too large: {width}x{height} > "
+            f"{MAX_IMAGE_PIXELS} pixels")
+
+    return width, height
+# }}}
+
 # {{{ jpeg_load()
 def jpeg_load(path, use_blocks=False):
 
-    if not os.path.isfile(path):
-        raise FileNotFoundError(errno.ENOENT, 
-                os.strerror(errno.ENOENT), path)
+    validate_image_resource(path)
 
     jpeg.write_file.argtypes = c_char_p,
     jpeg.read_file.restype = py_object
@@ -724,6 +750,7 @@ class S_UNIWARD:
 
     def embed(self, input_img_path, msg_file_path, password, output_img_path):
 
+        validate_image_resource(input_img_path)
         I = imageio.imread(input_img_path)
         
         n_channels = 3
@@ -769,6 +796,7 @@ class S_UNIWARD:
 
     def extract(self, stego_img_path, password, output_msg_path):
 
+        validate_image_resource(stego_img_path)
         I = imageio.imread(stego_img_path)
        
         n_channels = 3
@@ -1017,6 +1045,7 @@ class J_UNIWARD:
     def embed(self, input_img_path, msg_file_path, password, output_img_path):
 
         #I = imageio.imread(input_img_path)
+        validate_image_resource(input_img_path)
         jpg = jpeg_load(input_img_path)
         if jpg["jpeg_components"] == 1:
             n_channels = 1
@@ -1081,6 +1110,7 @@ class J_UNIWARD:
 
     def extract(self, stego_img_path, password, output_msg_path):
 
+        validate_image_resource(stego_img_path)
         I = imageio.imread(stego_img_path)
         jpg = jpeg_load(stego_img_path)
        

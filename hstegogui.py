@@ -340,6 +340,7 @@ class Wizard:
         # {{{
         image_capacity = 0
         img_path = self.cover_entry.get()
+        hstegolib.validate_image_resource(img_path)
 
         if hstegolib.is_ext(img_path, hstegolib.SPATIAL_EXT):
             I = np.asarray(Image.open(img_path))
@@ -513,8 +514,11 @@ class StepScreen:
             if not filename:
                 return
 
-            wz.cover_entry.delete(0, END)
-            wz.cover_entry.insert(0, filename)
+            try:
+                hstegolib.validate_image_resource(filename)
+            except Exception as e:
+                messagebox.showerror('Error', str(e))
+                return
 
             img = Image.open(filename)
             w, h = img.size
@@ -525,6 +529,9 @@ class StepScreen:
             x_offset = int(WIN_W/2-new_w/2)
             canvas.create_image(x_offset, 0, anchor=NW, image=img)
             canvas.img = img
+
+            wz.cover_entry.delete(0, END)
+            wz.cover_entry.insert(0, filename)
 
             # Update image capacity entry
             capacity = wz.get_cover_capacity()
@@ -744,6 +751,12 @@ class StepScreen:
                             )
               )
               if not filename:
+                  return
+
+              try:
+                  hstegolib.validate_image_resource(filename)
+              except Exception as e:
+                  messagebox.showerror('Error', str(e))
                   return
 
               wz.stego_image_path = filename
