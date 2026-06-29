@@ -29,8 +29,8 @@ be used using the
 [command line](#command-line-examples).
 
 Download Links:
-- [Linux x86\_64 v0.5](https://github.com/daniellerch/hstego/releases/download/v0.5/hstego-0.5-linux.x86_64) 
-- [Windows AMD64 v0.5](https://github.com/daniellerch/hstego/releases/download/v0.5/hstego-0.5-win.amd64.exe)
+- [Linux x86\_64 v0.6](https://github.com/daniellerch/hstego/releases/download/v0.6/hstego-0.6-linux.x86_64) 
+- [Windows AMD64 v0.6](https://github.com/daniellerch/hstego/releases/download/v0.6/hstego-0.6-win.amd64.exe)
 
 
 ## GUI examples:
@@ -89,7 +89,7 @@ hstego.py extract stego.jpg content.txt MyP4ssw0rd101
 You can install HStego with the following commands:
 ```bash 
 sudo pip3 install imageio numpy scipy pycryptodome numba Pillow
-sudo pip3 install git+https://github.com/daniellerch/hstego.git@v0.4
+sudo pip3 install git+https://github.com/daniellerch/hstego.git@v0.6
 ```
 
 Uninstall with:
@@ -188,7 +188,6 @@ The embedding is implemeted using Syndrome Trellis Codes:
 Part of the C/C++ code used by HStego comes from the [Digital Data Embedding Laboratory](http://dde.binghamton.edu/download/).
 
 This software would not have been possible without their excellent work.
-
 
 
 
