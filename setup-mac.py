@@ -3,19 +3,23 @@ import subprocess
 from setuptools import setup, Extension
 
 
-def jpeg_include_dirs():
+def jpeg_dirs():
       local_include = os.path.join('src', 'jpeg-9c-win', 'Include')
       try:
             prefix = subprocess.check_output(
                   ['brew', '--prefix', 'jpeg'], text=True).strip()
       except (OSError, subprocess.CalledProcessError):
-            return [local_include]
-      return [os.path.join(prefix, 'include'), local_include]
+            return [local_include], []
+      return [os.path.join(prefix, 'include'), local_include], [os.path.join(prefix, 'lib')]
+
+
+jpeg_includes, jpeg_libraries = jpeg_dirs()
 
 
 m_jpg = Extension('hstego_jpeg_toolbox_extension', 
-                  include_dirs = jpeg_include_dirs(),
+                  include_dirs = jpeg_includes,
                   sources = ['src/jpeg_toolbox_extension.c'], 
+                  library_dirs = jpeg_libraries,
                   libraries = ['jpeg'])
 
 m_stc = Extension('hstego_stc_extension', 
