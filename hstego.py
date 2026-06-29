@@ -41,7 +41,16 @@ def get_cover_capacity(img_path):
     return image_capacity
 
 
+def cli_excepthook(exc_type, exc, tb):
+    if issubclass(exc_type, KeyboardInterrupt):
+        sys.__excepthook__(exc_type, exc, tb)
+        return
+    print(f"Error: {exc}", file=sys.stderr)
+
+
 if __name__ == "__main__":
+    if len(sys.argv) > 1:
+        sys.excepthook = cli_excepthook
 
     if len(sys.argv)<=1:
         has_gui = False
@@ -163,7 +172,6 @@ if __name__ == "__main__":
 
     else:
         help()
-
 
 
 

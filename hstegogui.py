@@ -11,6 +11,7 @@ import tempfile
 import traceback
 import hstegolib
 import threading
+import queue
 import webbrowser
 
 import tkinter as tk
@@ -156,6 +157,8 @@ class Wizard:
         self.dest_msg = None
         self.output_msg_path = None
         self.msg_output_text = None       
+        self.worker_results = queue.Queue()
+        self.window.after(100, self.process_worker_results)
 
 
         step = {
@@ -182,6 +185,42 @@ class Wizard:
         self.restart_btn = navbtn(nav_panel, "Restart", self.restart,  205, 20)
         self.prev_btn = navbtn(nav_panel, "Previous", self.prev,  320, 20, disabled=True)
         self.next_btn = navbtn(nav_panel, "Next", self.next,  425, 20, disabled=True)
+        # }}}
+
+    def process_worker_results(self):
+        # {{{
+        try:
+            while True:
+                task, ok, result = self.worker_results.get_nowait()
+                if self.progressbar:
+                    self.progressbar.place_forget()
+
+                if not ok:
+                    messagebox.showerror('Error', str(result))
+                    continue
+
+                if task == "hide":
+                    messagebox.showinfo('Success', 'The message has been hidden')
+                    self.restart()
+                elif task == "extract":
+                    if result is not None:
+                        self.msg_output_text["state"] = 'normal'
+                        self.msg_output_text.delete("1.0", END)
+                        self.msg_output_text.insert("1.0", result)
+                        self.msg_output_text["state"] = 'disabled'
+                    messagebox.showinfo('Success', 'The message has been extracted')
+        except queue.Empty:
+            pass
+        self.window.after(100, self.process_worker_results)
+        # }}}
+
+    def run_worker(self, task, fn, *args):
+        # {{{
+        try:
+            self.worker_results.put((task, True, fn(*args)))
+        except Exception as e:
+            traceback.print_exc()
+            self.worker_results.put((task, False, e))
         # }}}
 
     def panel(self, k):
@@ -330,101 +369,58 @@ class Wizard:
         return len(content)
         # }}}
 
-    def hide(self):
+    def hide_job(self, cover_image_path, stego_image_path, msg_path,
+                 password, input_msg_content):
         """ Hide message using the info in the inputs """
         # {{{
+        tmp = None
         try:
-            cover_image_path = self.cover_entry.get()
-            stego_image_path = self.dst_stego_image_path
+            if input_msg_content is not None:
+                tmp = tempfile.NamedTemporaryFile(delete=False)
+                tmp.write(input_msg_content.encode())
+                msg_path = tmp.name
+                tmp.close()
 
-            if cover_image_path == stego_image_path:
-                messagebox.showerror('Error', 'Cover and stego cannot be the same image')
-                return False
+            if os.path.getsize(msg_path) <= 8:
+                raise ValueError('Please, write a longer message')
 
-            if self.get_msg_size() > self.get_cover_capacity():
-                messagebox.showerror('Error', 'The message is too long for the selected cover')
-                return False
-
-
-            msg_path = self.msg_entry.get()
-            password = self.passw_hide_entry.get()
-            tmp = None
-            try:
-                if not self.use_msg_file.get():
-                    input_msg_content = self.msg_text.get("1.0", END).strip()
-                    tmp = tempfile.NamedTemporaryFile(delete=False)
-                    tmp.write(input_msg_content.encode())
-                    msg_path = tmp.name
-                    tmp.close()
-
-                if os.path.getsize(msg_path) <= 8:
-                    messagebox.showerror('Error', 'Please, write a longer message')
-                    return False
-
-                if hstegolib.is_ext(cover_image_path, hstegolib.SPATIAL_EXT):
-                    suniw = hstegolib.S_UNIWARD()
-                    suniw.embed(cover_image_path, msg_path, password, stego_image_path)
-                else:
-                    juniw = hstegolib.J_UNIWARD()
-                    juniw.embed(cover_image_path, msg_path, password, stego_image_path)
-            finally:
-                remove_temp_file(tmp)
-
-        except Exception as e:
-            messagebox.showerror('Error', str(e))
-            traceback.print_exc()
-            return False
-
-        return True
+            if hstegolib.is_ext(cover_image_path, hstegolib.SPATIAL_EXT):
+                suniw = hstegolib.S_UNIWARD()
+                suniw.embed(cover_image_path, msg_path, password, stego_image_path)
+            else:
+                juniw = hstegolib.J_UNIWARD()
+                juniw.embed(cover_image_path, msg_path, password, stego_image_path)
+        finally:
+            remove_temp_file(tmp)
         # }}}
 
-    def extract(self):
+    def extract_job(self, stego_image_path, password, output_msg_path, to_screen):
         """ Extract the message using the info in the inputs """
         # {{{
-
+        tmp = None
         try:
-            stego_image_path = self.stego_image_path
-            password = self.passw_extract_entry.get()
-            tmp = None
-
-            if self.dest_msg.get() == "FILE":
-                output_msg_path = self.output_msg_path
-            else:
+            if to_screen:
                 tmp = tempfile.NamedTemporaryFile(delete=False)
                 output_msg_path = tmp.name
                 tmp.close()
 
+            if hstegolib.is_ext(stego_image_path, hstegolib.SPATIAL_EXT):
+                suniw = hstegolib.S_UNIWARD()
+                suniw.extract(stego_image_path, password, output_msg_path)
+            else:
+                juniw = hstegolib.J_UNIWARD()
+                juniw.extract(stego_image_path, password, output_msg_path)
 
-            try:
-                if hstegolib.is_ext(stego_image_path, hstegolib.SPATIAL_EXT):
-                    suniw = hstegolib.S_UNIWARD()
-                    suniw.extract(stego_image_path, password, output_msg_path)
-                else:
-                    juniw = hstegolib.J_UNIWARD()
-                    juniw.extract(stego_image_path, password, output_msg_path)
+            with open(output_msg_path, "rb") as f:
+                content = f.read()
+                if len(content) <= 0:
+                    raise ValueError('Message not found, may be the password is wrong')
 
-
-                with open(output_msg_path, "rb") as f:
-                    content = f.read()
-                    if len(content) <= 0:
-                        messagebox.showerror('Error', 'Message not found, may be the password is wrong')
-                        return False
-
-                    if self.dest_msg.get() == "SCREEN":
-                        self.msg_output_text["state"] = 'normal'
-                        self.msg_output_text.delete("1.0", END)
-                        self.msg_output_text.insert("1.0", content)
-                        self.msg_output_text["state"] = 'disabled'
-
-            finally:
-                remove_temp_file(tmp)
-        
-        except Exception as e:
-            messagebox.showerror('Error', str(e))
-            traceback.print_exc()
-            return False
-
-        return True
+                if to_screen:
+                    return content
+            return None
+        finally:
+            remove_temp_file(tmp)
         # }}}
 
 
@@ -667,11 +663,13 @@ class StepScreen:
 
 
         def threaded_hide(wz):
-            r = wz.hide()
-            wz.progressbar.place_forget()
-            if r:
-                messagebox.showinfo('Success', 'The message has been hidden')
-                wz.restart()
+            wz.run_worker(
+                "hide", wz.hide_job,
+                wz.pending_cover_image_path,
+                wz.pending_stego_image_path,
+                wz.pending_msg_path,
+                wz.pending_hide_password,
+                wz.pending_input_msg_content)
 
         def savestego():
             if wz.has_errors():
@@ -688,8 +686,24 @@ class StepScreen:
             if not f:
                 return
 
+            if wz.cover_entry.get() == f:
+                messagebox.showerror('Error', 'Cover and stego cannot be the same image')
+                return
+
+            if wz.get_msg_size() > wz.get_cover_capacity():
+                messagebox.showerror('Error', 'The message is too long for the selected cover')
+                return
+
             wz.dst_stego_image_path = f
-            
+            wz.pending_cover_image_path = wz.cover_entry.get()
+            wz.pending_stego_image_path = f
+            wz.pending_msg_path = wz.msg_entry.get()
+            wz.pending_hide_password = wz.passw_hide_entry.get()
+            if wz.use_msg_file.get():
+                wz.pending_input_msg_content = None
+            else:
+                wz.pending_input_msg_content = wz.msg_text.get("1.0", END).strip()
+
             wz.progressbar.place(x=10, y=300, width=580, height=30)
             t = threading.Thread(target=threaded_hide, args=[wz])
             t.start()
@@ -808,10 +822,12 @@ class StepScreen:
         wz.passw_extract_entry.place(x=360, y=310, width=230, height=30)
 
         def threaded_extract(wz):
-            r = wz.extract()
-            wz.progressbar.place_forget()
-            if r:
-                messagebox.showinfo('Success', 'The message has been extracted')
+            wz.run_worker(
+                "extract", wz.extract_job,
+                wz.pending_stego_image_path,
+                wz.pending_extract_password,
+                wz.pending_output_msg_path,
+                wz.pending_extract_to_screen)
 
         def extract_msg():
             if wz.has_errors():
@@ -825,6 +841,14 @@ class StepScreen:
                 if not f:
                     return
                 wz.output_msg_path = f
+
+            wz.pending_stego_image_path = wz.stego_image_path
+            wz.pending_extract_password = wz.passw_extract_entry.get()
+            wz.pending_extract_to_screen = wz.dest_msg.get() == "SCREEN"
+            if wz.pending_extract_to_screen:
+                wz.pending_output_msg_path = None
+            else:
+                wz.pending_output_msg_path = wz.output_msg_path
 
             t = threading.Thread(target=threaded_extract, args=[wz])
             t.start()
@@ -917,4 +941,3 @@ def run(window):
     ss.create_step_3E_screen()
 
     window.mainloop()
-

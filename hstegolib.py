@@ -88,8 +88,7 @@ def _find_native_library(module_name):
 def _load_native_library(module_name, label):
     path = _find_native_library(module_name)
     if not path:
-        print(label, "library not found:", _module_base_dir())
-        sys.exit(1)
+        raise RuntimeError(f"{label} library not found: {_module_base_dir()}")
     return CDLL(path)
 
 
@@ -746,8 +745,7 @@ class S_UNIWARD:
         effective_capacities = effective_payload_capacities(channel_capacities)
         capacity = sum(effective_capacities)
         if len(message) > capacity:
-            print("ERROR, message too long:", len(message), ">", capacity)
-            sys.exit(0)
+            raise ValueError(f"Message too long: {len(message)} > {capacity}")
 
         stego = Stego()
         msg_bits = split_by_capacity(message, effective_capacities)
@@ -1049,8 +1047,7 @@ class J_UNIWARD:
         capacity = sum(effective_capacities)
 
         if len(message) > capacity:
-            print("ERROR, message too long:", len(message), ">", capacity)
-            sys.exit(0)
+            raise ValueError(f"Message too long: {len(message)} > {capacity}")
 
 
         stego = Stego()
@@ -1129,4 +1126,3 @@ class J_UNIWARD:
         f.close()
         
     # }}}
-
