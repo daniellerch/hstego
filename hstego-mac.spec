@@ -2,6 +2,8 @@
 
 import glob
 
+from PyInstaller.utils.hooks import copy_metadata
+
 
 block_cipher = None
 
@@ -21,7 +23,7 @@ a = Analysis(
        (native_extension('hstego_jpeg_toolbox_extension'), '.'), 
        (native_extension('hstego_stc_extension'), '.')
     ],
-    datas=[('resources', 'resources')],
+    datas=copy_metadata('imageio') + [('resources', 'resources')],
     hiddenimports=['PIL._tkinter_finder'],
     hookspath=[],
     hooksconfig={},

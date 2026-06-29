@@ -1,8 +1,19 @@
 import os
+import subprocess
 from setuptools import setup, Extension
 
+
+def jpeg_include_dirs():
+      try:
+            prefix = subprocess.check_output(
+                  ['brew', '--prefix', 'jpeg'], text=True).strip()
+      except (OSError, subprocess.CalledProcessError):
+            return []
+      return [os.path.join(prefix, 'include')]
+
+
 m_jpg = Extension('hstego_jpeg_toolbox_extension', 
-                  include_dirs = ['/usr/local/Cellar/jpeg/9e/include/'],
+                  include_dirs = jpeg_include_dirs(),
                   sources = ['src/jpeg_toolbox_extension.c'], 
                   libraries = ['jpeg'])
 
