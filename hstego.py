@@ -14,7 +14,7 @@ def help():
     print("\nUsage:")
     print(f"  {sys.argv[0]} embed <msg file> <cover image> <output stego image> [password]")
     print(f"  {sys.argv[0]} extract <stego image> <output msg file> [password]")
-    print(f"  {sys.argv[0]} capacity <image>")
+    print(f"  {sys.argv[0]} capacity <image> [--raw]")
 
     print("\nExample:")
     print(f"  {sys.argv[0]} embed input-secret.txt cover.png stego.png p4ssw0rd")
@@ -135,15 +135,26 @@ if __name__ == "__main__":
 
 
     elif sys.argv[1] == "capacity":
+        if len(sys.argv) < 3:
+            help()
+
         img_path = sys.argv[2]
+        raw_output = len(sys.argv) == 4 and sys.argv[3] == "--raw"
+
         if hstegolib.is_ext(img_path, hstegolib.SPATIAL_EXT):
             I = imageio.imread(img_path)
-            print("Capacity:", hstegolib.spatial_capacity(I), "bytes")
+            capacity = hstegolib.spatial_capacity(I)
         elif hstegolib.is_ext(img_path, "jpg"):
             jpg = hstegolib.jpeg_load(img_path)
-            print("Capacity:", hstegolib.jpg_capacity(jpg), "bytes")
+            capacity = hstegolib.jpg_capacity(jpg)
         else:
             print("File extension not supported")
+            sys.exit(1)
+
+        if raw_output:
+            print(capacity)
+        else:
+            print("Capacity:", capacity, "bytes")
  
 
 
