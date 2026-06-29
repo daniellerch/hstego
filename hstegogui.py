@@ -12,6 +12,7 @@ import traceback
 import hstegolib
 import threading
 import queue
+import subprocess
 import webbrowser
 
 import tkinter as tk
@@ -31,6 +32,7 @@ PANE_W = 600
 PANE_H = 380
 FONT = ("Helvetica", "11", "normal")
 FONT_B = ("Helvetica", "11", "bold")
+VERSION = "0.6"
 
 
 base = os.path.dirname(__file__)
@@ -49,6 +51,22 @@ def remove_temp_file(tmp):
         os.unlink(tmp.name)
     except FileNotFoundError:
         pass
+
+
+def cli_command():
+    if getattr(sys, 'frozen', False):
+        return [sys.executable]
+    return [sys.executable, os.path.join(base, "hstego.py")]
+
+
+def run_cli(args):
+    proc = subprocess.run(
+        cli_command() + args,
+        capture_output=True,
+        text=True)
+    if proc.returncode != 0:
+        error = proc.stderr.strip() or proc.stdout.strip()
+        raise RuntimeError(error or "Operation failed")
 
 
 
@@ -99,7 +117,7 @@ class About(simpledialog.Dialog):
         lnk.bind("<Button-1>", click_www)
         lnk.place(x=100, y=46)
 
-        Label(frame, text='Version: 0.5 (alpha)', font=FONT).place(x=110, y=80)
+        Label(frame, text=f'Version: {VERSION} (alpha)', font=FONT).place(x=110, y=80)
 
 
         Label(frame, text='GitHub:', font=FONT).place(x=150, y=140)
@@ -385,12 +403,9 @@ class Wizard:
             if os.path.getsize(msg_path) <= 8:
                 raise ValueError('Please, write a longer message')
 
-            if hstegolib.is_ext(cover_image_path, hstegolib.SPATIAL_EXT):
-                suniw = hstegolib.S_UNIWARD()
-                suniw.embed(cover_image_path, msg_path, password, stego_image_path)
-            else:
-                juniw = hstegolib.J_UNIWARD()
-                juniw.embed(cover_image_path, msg_path, password, stego_image_path)
+            run_cli([
+                "embed", msg_path, cover_image_path, stego_image_path,
+                password])
         finally:
             remove_temp_file(tmp)
         # }}}
@@ -405,12 +420,8 @@ class Wizard:
                 output_msg_path = tmp.name
                 tmp.close()
 
-            if hstegolib.is_ext(stego_image_path, hstegolib.SPATIAL_EXT):
-                suniw = hstegolib.S_UNIWARD()
-                suniw.extract(stego_image_path, password, output_msg_path)
-            else:
-                juniw = hstegolib.J_UNIWARD()
-                juniw.extract(stego_image_path, password, output_msg_path)
+            run_cli([
+                "extract", stego_image_path, output_msg_path, password])
 
             with open(output_msg_path, "rb") as f:
                 content = f.read()
