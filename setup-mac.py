@@ -4,12 +4,13 @@ from setuptools import setup, Extension
 
 
 def jpeg_include_dirs():
+      local_include = os.path.join('src', 'jpeg-9c-win', 'Include')
       try:
             prefix = subprocess.check_output(
                   ['brew', '--prefix', 'jpeg'], text=True).strip()
       except (OSError, subprocess.CalledProcessError):
-            return []
-      return [os.path.join(prefix, 'include')]
+            return [local_include]
+      return [os.path.join(prefix, 'include'), local_include]
 
 
 m_jpg = Extension('hstego_jpeg_toolbox_extension', 
