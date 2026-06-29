@@ -29,8 +29,8 @@ be used using the
 [command line](#command-line-examples).
 
 Download Links:
-- [Linux x86\_64 v0.6](https://github.com/daniellerch/hstego/releases/download/v0.6/hstego-0.6-linux.x86_64) 
-- [Windows AMD64 v0.6](https://github.com/daniellerch/hstego/releases/download/v0.6/hstego-0.6-win.amd64.exe)
+- [Linux x86\_64 v0.5](https://github.com/daniellerch/hstego/releases/download/v0.5/hstego-0.5-linux.x86_64) 
+- [Windows AMD64 v0.5](https://github.com/daniellerch/hstego/releases/download/v0.5/hstego-0.5-win.amd64.exe)
 
 
 ## GUI examples:
