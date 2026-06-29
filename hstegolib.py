@@ -11,6 +11,7 @@ import imageio
 import hashlib
 import zlib
 import warnings
+import importlib.machinery
 
 import scipy.signal
 import scipy.fftpack
@@ -45,38 +46,54 @@ HEADER_SIZE = AES.block_size + AES.block_size + HEADER_PLAINTEXT_SIZE
 HEADER_COVER_LEN = HEADER_SIZE * 8 * 2
 
 
-base = os.path.dirname(__file__)
+def _module_base_dir():
+    if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
+        return os.path.abspath(sys._MEIPASS)
+    return os.path.abspath(os.path.dirname(__file__))
 
-jpg_pattern = 'hstego_jpeg_toolbox_extension*.so'
-stc_pattern = 'hstego_stc_extension*.so'
 
-# running in a pyinstaller bundle
-if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
-    base = sys._MEIPASS
+def _native_library_patterns(module_name):
+    patterns = [
+        module_name + suffix
+        for suffix in importlib.machinery.EXTENSION_SUFFIXES
+    ]
+    patterns.extend([
+        module_name + '*.so',
+        module_name + '*.pyd',
+        module_name + '*.dll',
+        module_name + '*.dylib',
+    ])
+    return patterns
 
-jpg_candidates = glob.glob(os.path.join(base, jpg_pattern))
-if not jpg_candidates and sys.platform == "linux": # devel mode
-    jpg_candidates = glob.glob('build/lib.linux*/'+jpg_pattern)
-if not jpg_candidates and sys.platform == "win32": # devel mode
-    jpg_candidates = glob.glob('build/lib.win*/'+jpg_pattern)
-if not jpg_candidates and sys.platform == "darwin": # devel mode
-    jpg_candidates = glob.glob('build/lib.mac*/'+jpg_pattern)
-if not jpg_candidates:
-    print("JPEG Toolbox library not found:", base)
-    sys.exit(0)
-jpeg = CDLL(jpg_candidates[0])
 
-stc_candidates = glob.glob(os.path.join(base, stc_pattern))
-if not stc_candidates and sys.platform == "linux": # devel mode
-    stc_candidates = glob.glob('build/lib.linux*/'+stc_pattern)
-if not stc_candidates and sys.platform == "win32": # devel mode
-    stc_candidates = glob.glob('build/lib.win*/'+stc_pattern)
-if not stc_candidates and sys.platform == "darwin": # devel mode
-    stc_candidates = glob.glob('build/lib.mac*/'+stc_pattern)
-if not stc_candidates:
-    print("STC library not found:", base)
-    sys.exit(0)
-stc = CDLL(stc_candidates[0])
+def _find_native_library(module_name):
+    base = _module_base_dir()
+    patterns = _native_library_patterns(module_name)
+    search_dirs = [base]
+
+    if not getattr(sys, 'frozen', False):
+        search_dirs.extend(glob.glob(os.path.join(base, 'build', 'lib.*')))
+
+    for search_dir in search_dirs:
+        for pattern in patterns:
+            candidates = sorted(glob.glob(os.path.join(search_dir, pattern)))
+            if candidates:
+                return candidates[0]
+    return None
+
+
+def _load_native_library(module_name, label):
+    path = _find_native_library(module_name)
+    if not path:
+        print(label, "library not found:", _module_base_dir())
+        sys.exit(1)
+    return CDLL(path)
+
+
+jpeg = _load_native_library(
+    'hstego_jpeg_toolbox_extension', "JPEG Toolbox")
+stc = _load_native_library(
+    'hstego_stc_extension', "STC")
 
 
 # {{{ is_ext()
@@ -1086,7 +1103,5 @@ class J_UNIWARD:
         f.close()
         
     # }}}
-
-
 
 

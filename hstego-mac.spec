@@ -1,15 +1,25 @@
 # -*- mode: python ; coding: utf-8 -*-
 
+import glob
+
 
 block_cipher = None
+
+
+def native_extension(name):
+    candidates = sorted(glob.glob(f'build/lib.macosx*/{name}*'))
+    if not candidates:
+        raise FileNotFoundError(
+            f"Native extension not found for {name}. Run python3 setup.py build first.")
+    return candidates[-1]
 
 
 a = Analysis(
     ['hstego.py'],
     pathex=[],
     binaries=[
-       ('build/lib.macosx-10.9-universal2-3.10/hstego_jpeg_toolbox_extension.cpython-310-darwin.so', '.'), 
-       ('build/lib.macosx-10.9-universal2-3.10/hstego_stc_extension.cpython-310-darwin.so', '.')
+       (native_extension('hstego_jpeg_toolbox_extension'), '.'), 
+       (native_extension('hstego_stc_extension'), '.')
     ],
     datas=[('resources', 'resources')],
     hiddenimports=['PIL._tkinter_finder'],
@@ -31,7 +41,7 @@ exe = EXE(
     a.zipfiles,
     a.datas,
     [],
-    name='hstego-macosx.universal',
+    name='hstego-0.6-macosx.universal',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
