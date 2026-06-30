@@ -172,6 +172,7 @@ class Wizard:
         self.passw_extract_entry = None
         self.capacity_entry = None
         self.msg_size_entry = None
+        self.extract_progressbar = None
         self.dest_msg = None
         self.output_msg_path = None
         self.msg_output_text = None       
@@ -845,6 +846,10 @@ class StepScreen:
         wz.passw_extract_entry = Entry(wz.panel("3E"), show="*")
         wz.passw_extract_entry.place(x=360, y=310, width=230, height=30)
 
+        wz.extract_progressbar = Progressbar(wz.panel("3E"), orient="horizontal",
+                                             mode="indeterminate")
+        wz.extract_progressbar.start()
+
         def threaded_extract(wz):
             wz.run_worker(
                 "extract", wz.extract_job,
@@ -874,6 +879,8 @@ class StepScreen:
             else:
                 wz.pending_output_msg_path = wz.output_msg_path
 
+            wz.progressbar = wz.extract_progressbar
+            wz.progressbar.place(x=10, y=280, width=580, height=25)
             t = threading.Thread(target=threaded_extract, args=[wz])
             t.start()
 

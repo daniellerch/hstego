@@ -29,7 +29,7 @@ pip install numba
 
 python3.exe setup-win.py build
 
-pyinstaller.exe --onefile --noconsole --add-data "resources;resources" --add-binary ".\\build\\lib.win-amd64-cpython-311\\hstego_jpeg_toolbox_extension.so;." --add-binary ".\\build\\lib.win-amd64-cpython-311\\hstego_stc_extension.so;." --specpath "." .\hstego.py
+pyinstaller.exe hstego-win.spec
 
 
 -- Mac OX X --
@@ -53,6 +53,5 @@ sudo pip3 install pyinstaller
 
 python3 setup.py build
 /Library/Frameworks/Python.framework/Versions/3.10/bin/pyinstaller hstego-mac.spec
-
 
 
