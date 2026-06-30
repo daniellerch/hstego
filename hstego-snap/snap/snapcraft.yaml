@@ -1,0 +1,45 @@
+name: hstego
+base: core24
+version: '0.6'
+summary: Hard-to-detect image steganography
+description: |
+  HStego is a tool for hiding data in bitmap and JPEG images. This tool uses 
+  some of the most advanced steganography methods known today, along with an 
+  upper limit on the amount of data that can be hidden so that it cannot be 
+  reliably detected by modern steganography tools.
+
+grade: stable
+confinement: strict
+
+apps:
+  hstego:
+    command: bin/hstego
+    environment:
+      TMPDIR: $SNAP_USER_COMMON
+      FONTCONFIG_PATH: $SNAP/etc/fonts
+      FONTCONFIG_FILE: $SNAP/etc/fonts/fonts.conf
+      XDG_DATA_DIRS: $SNAP/usr/share:$XDG_DATA_DIRS
+    plugs:
+      - desktop
+      - desktop-legacy
+      - home
+      - removable-media
+      - wayland
+      - x11
+
+parts:
+  hstego:
+    plugin: dump
+    source: snap/local
+    stage-packages:
+      - libxcb1
+      - libx11-6
+      - libxext6
+      - libxrender1
+      - libxft2
+      - libfreetype6
+      - libfontconfig1
+      - fontconfig-config
+      - fonts-dejavu-core
+      - fonts-dejavu-extra
+      - fonts-liberation
