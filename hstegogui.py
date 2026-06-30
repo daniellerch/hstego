@@ -161,7 +161,8 @@ class Wizard:
         self.hide_btn = None
         self.extract_btn = None
 
-        self.progressbar = None
+        self.active_progressbar = None
+        self.hide_progressbar = None
         self.cover_entry = None
         self.dst_stego_image_path = None
         self.msg_text = None
@@ -173,6 +174,8 @@ class Wizard:
         self.capacity_entry = None
         self.msg_size_entry = None
         self.extract_progressbar = None
+        self.hide_action_btn = None
+        self.extract_action_btn = None
         self.dest_msg = None
         self.output_msg_path = None
         self.msg_output_text = None       
@@ -211,8 +214,13 @@ class Wizard:
         try:
             while True:
                 task, ok, result = self.worker_results.get_nowait()
-                if self.progressbar:
-                    self.progressbar.place_forget()
+                if self.active_progressbar:
+                    self.active_progressbar.place_forget()
+                    self.active_progressbar = None
+                if self.hide_action_btn:
+                    self.hide_action_btn["state"] = "normal"
+                if self.extract_action_btn:
+                    self.extract_action_btn["state"] = "normal"
 
                 if not ok:
                     messagebox.showerror('Error', str(result))
@@ -676,9 +684,9 @@ class StepScreen:
 
 
 
-        wz.progressbar = Progressbar(wz.panel("4H"), orient="horizontal", 
-                                                         mode="indeterminate")
-        wz.progressbar.start()
+        wz.hide_progressbar = Progressbar(wz.panel("4H"), orient="horizontal", 
+                                          mode="indeterminate")
+        wz.hide_progressbar.start()
 
 
         def threaded_hide(wz):
@@ -723,12 +731,14 @@ class StepScreen:
             else:
                 wz.pending_input_msg_content = wz.msg_text.get("1.0", END).strip()
 
-            wz.progressbar.place(x=10, y=300, width=580, height=30)
+            wz.active_progressbar = wz.hide_progressbar
+            wz.active_progressbar.place(x=10, y=300, width=580, height=30)
+            wz.hide_action_btn["state"] = "disabled"
             t = threading.Thread(target=threaded_hide, args=[wz])
             t.start()
 
-        btn = Button(wz.panel("4H"), command=savestego, text="Save")
-        btn.place(x=400, y=110, width=180, height=30)
+        wz.hide_action_btn = Button(wz.panel("4H"), command=savestego, text="Save")
+        wz.hide_action_btn.place(x=400, y=110, width=180, height=30)
 
         # }}}
 
@@ -879,14 +889,15 @@ class StepScreen:
             else:
                 wz.pending_output_msg_path = wz.output_msg_path
 
-            wz.progressbar = wz.extract_progressbar
-            wz.progressbar.place(x=10, y=280, width=580, height=25)
+            wz.active_progressbar = wz.extract_progressbar
+            wz.active_progressbar.place(x=10, y=280, width=580, height=25)
+            wz.extract_action_btn["state"] = "disabled"
             t = threading.Thread(target=threaded_extract, args=[wz])
             t.start()
 
-        msg_btn = Button(wz.panel("3E"), command=extract_msg, 
-                         text="Extract the message")
-        msg_btn.place(x=360, y=350, width=230, height=30)
+        wz.extract_action_btn = Button(wz.panel("3E"), command=extract_msg, 
+                                       text="Extract the message")
+        wz.extract_action_btn.place(x=360, y=350, width=230, height=30)
 
 
 
