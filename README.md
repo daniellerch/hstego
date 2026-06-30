@@ -12,6 +12,7 @@ This tool uses some of the most advanced steganography methods known today, alon
 
 ## Documentation:
 - [Download](#download)
+- [Install from Snap](#install-from-snap)
 - [GUI examples](#gui-examples)
 - [Command line examples](#command-line-examples)
 - [Install from source code](#install)
@@ -31,6 +32,25 @@ be used using the
 Download Links:
 - [Linux x86\_64 v0.6](https://github.com/daniellerch/hstego/releases/download/v0.6/hstego-0.6-linux.x86_64) 
 - [Windows AMD64 v0.6](https://github.com/daniellerch/hstego/releases/download/v0.6/hstego-0.6-win.amd64.exe)
+
+
+## Install from Snap
+
+HStego is also available from the Snap Store:
+
+```bash
+sudo snap install hstego
+```
+
+To use the command line interface with files in removable media, connect the
+following interface:
+
+```bash
+sudo snap connect hstego:removable-media
+```
+
+Due to Snap confinement, command line access is limited to files in standard
+locations such as your home directory, `/media`, and `/mnt`.
 
 
 ## GUI examples:
@@ -188,7 +208,6 @@ The embedding is implemeted using Syndrome Trellis Codes:
 Part of the C/C++ code used by HStego comes from the [Digital Data Embedding Laboratory](http://dde.binghamton.edu/download/).
 
 This software would not have been possible without their excellent work.
-
 
 
 
