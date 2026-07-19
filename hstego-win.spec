@@ -43,7 +43,7 @@ exe = EXE(
     a.zipfiles,
     a.datas,
     [],
-    name='hstego-0.6-win.amd64',
+    name='hstego-0.6.1-win.amd64',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,

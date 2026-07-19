@@ -1,6 +1,6 @@
 name: hstego
 base: core24
-version: '0.6'
+version: '0.6.1'
 summary: Hard-to-detect image steganography
 description: |
   HStego is a tool for hiding data in bitmap and JPEG images. This tool uses 

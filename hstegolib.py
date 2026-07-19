@@ -1049,14 +1049,18 @@ class J_UNIWARD:
         jpg = jpeg_load(input_img_path)
         if jpg["jpeg_components"] == 1:
             n_channels = 1
-            I = uncompress(jpg["coef_arrays"][0], jpg["quant_tables"][0])
+            quant = jpg["quant_tables"][jpg["comp_info"][0]["quant_tbl_no"]]
+            I = uncompress(jpg["coef_arrays"][0], quant)
             I = I[..., np.newaxis]
             spatial_uncompress = (I[:, :, 0],)
         else:
             n_channels = 3
-            Y = uncompress(jpg["coef_arrays"][0], jpg["quant_tables"][0])
-            Cb = uncompress(jpg["coef_arrays"][1], jpg["quant_tables"][1])
-            Cr = uncompress(jpg["coef_arrays"][2], jpg["quant_tables"][1])
+            Y = uncompress(jpg["coef_arrays"][0],
+                           jpg["quant_tables"][jpg["comp_info"][0]["quant_tbl_no"]])
+            Cb = uncompress(jpg["coef_arrays"][1],
+                            jpg["quant_tables"][jpg["comp_info"][1]["quant_tbl_no"]])
+            Cr = uncompress(jpg["coef_arrays"][2],
+                            jpg["quant_tables"][jpg["comp_info"][2]["quant_tbl_no"]])
             spatial_uncompress = (Y, Cb, Cr)
             I = YCbCr_to_RGB(Y, Cb, Cr)
 
@@ -1083,10 +1087,7 @@ class J_UNIWARD:
         msg_bits = split_by_capacity(message, effective_capacities)
 
         for c in range(n_channels):
-            quant = jpg["quant_tables"][0]
-
-            if c > 0:
-                quant = jpg["quant_tables"][1]
+            quant = jpg["quant_tables"][jpg["comp_info"][c]["quant_tbl_no"]]
 
             cost = self.cost_fn(jpg["coef_arrays"][c], I[:,:,c], quant)
             costs_m1, costs_p1 = self.cost_polarization(

@@ -43,7 +43,7 @@ exe = EXE(
     a.zipfiles,
     a.datas,
     [],
-    name='hstego-0.6-macosx.universal',
+    name='hstego-0.6.1-macosx.universal',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,

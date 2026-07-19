@@ -32,7 +32,7 @@ PANE_W = 600
 PANE_H = 380
 FONT = ("Helvetica", "11", "normal")
 FONT_B = ("Helvetica", "11", "bold")
-VERSION = "0.6"
+VERSION = "0.6.1"
 
 
 base = os.path.dirname(__file__)

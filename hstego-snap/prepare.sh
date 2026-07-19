@@ -9,11 +9,11 @@ set -euo pipefail
 #   pyinstaller hstego-linux.spec
 
 mkdir -p hstego-snap/snap/local/bin
-cp dist/hstego-0.6-linux.x86_64 hstego-snap/snap/local/bin/hstego
+cp dist/hstego-0.6.1-linux.x86_64 hstego-snap/snap/local/bin/hstego
 chmod 755 hstego-snap/snap/local/bin/hstego
 
 cd hstego-snap
 snapcraft pack
 
 # Install locally for testing:
-#   sudo snap install hstego_0.6_amd64.snap --dangerous
+#   sudo snap install hstego_0.6.1_amd64.snap --dangerous

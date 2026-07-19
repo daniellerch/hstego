@@ -6,6 +6,9 @@ on:
     tags:
       - "v*"
 
+permissions:
+  contents: write
+
 jobs:
   build-windows:
     runs-on: windows-latest
@@ -35,7 +38,8 @@ jobs:
       - name: Smoke test executable
         shell: pwsh
         run: |
-          .\dist\hstego-0.6-win.amd64.exe capacity testing\cover.png --raw
+          $executable = Get-ChildItem dist -Filter "hstego-*-win.amd64.exe" | Select-Object -First 1
+          & $executable.FullName capacity testing\cover.png --raw
 
       - name: Show build output
         shell: pwsh
@@ -45,7 +49,7 @@ jobs:
       - name: Upload executable
         uses: actions/upload-artifact@v4
         with:
-          name: hstego-0.6-windows
+          name: hstego-windows
           path: dist/*.exe
 
   build-linux:
@@ -85,5 +89,22 @@ jobs:
       - name: Upload executable
         uses: actions/upload-artifact@v4
         with:
-          name: hstego-0.6-linux
-          path: dist/hstego-0.6-linux.x86_64
+          name: hstego-linux
+          path: dist/hstego-*-linux.x86_64
+
+  release:
+    needs: [build-windows, build-linux]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download release assets
+        uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: release-assets/**/*
