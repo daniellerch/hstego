@@ -246,9 +246,11 @@ def spatial_capacity(I):
     if len(I.shape) == 2:
         channel_capacities = [spatial_channel_capacity(I)]
     else:
+        # S-UNIWARD preserves RGBA alpha but embeds only in the RGB channels.
+        n_channels = 3 if I.shape[2] == 4 else I.shape[2]
         channel_capacities = [
             spatial_channel_capacity(I[:, :, channel])
-            for channel in range(I.shape[2])
+            for channel in range(n_channels)
         ]
     return sum(effective_payload_capacities(channel_capacities))
 # }}} 

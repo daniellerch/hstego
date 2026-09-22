@@ -76,6 +76,26 @@ run_case \
     "$TMPDIR/stego-near-capacity-color.png" \
     "$TMPDIR/output-near-capacity-color.bin"
 
+# RGBA capacity must exclude alpha, which S-UNIWARD preserves without embedding.
+python3 - "$TMPDIR/cover-rgba.png" <<'PY'
+import sys
+from PIL import Image
+
+with Image.open("testing/cover_color.png") as cover:
+    cover.convert("RGBA").save(sys.argv[1])
+PY
+
+make_near_capacity_secret \
+    "$TMPDIR/cover-rgba.png" \
+    "$TMPDIR/input-near-capacity-rgba.bin"
+
+run_case \
+    "near-capacity bin + rgba png" \
+    "$TMPDIR/input-near-capacity-rgba.bin" \
+    "$TMPDIR/cover-rgba.png" \
+    "$TMPDIR/stego-near-capacity-rgba.png" \
+    "$TMPDIR/output-near-capacity-rgba.bin"
+
 run_case \
     "text + grayscale jpg" \
     testing/input-secret-small.txt \
